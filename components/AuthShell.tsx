@@ -2,7 +2,7 @@ import { CloudMascot } from "@/components/CloudMascot";
 
 export function AuthShell({ subtitle, children }: { subtitle: string; children: React.ReactNode }) {
   return (
-    <main className="content flex flex-col justify-center">
+    <main className="content narrow flex flex-col justify-center">
       <div className="mb-6 text-center">
         <div className="mb-3 flex justify-center">
           <CloudMascot size={80} />

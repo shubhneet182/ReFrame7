@@ -3,7 +3,13 @@
 import { useState } from "react";
 import type { ThoughtRecord } from "@/types";
 
-export function ExportPdfButton({ record }: { record: ThoughtRecord }) {
+interface ExportPdfButtonProps {
+  record: ThoughtRecord;
+  /** Small inline action (for record cards) instead of a full-width button. */
+  compact?: boolean;
+}
+
+export function ExportPdfButton({ record, compact = false }: ExportPdfButtonProps) {
   const [busy, setBusy] = useState(false);
 
   async function exportPdf() {
@@ -18,8 +24,13 @@ export function ExportPdfButton({ record }: { record: ThoughtRecord }) {
   }
 
   return (
-    <button type="button" className="btn btn-ghost" onClick={exportPdf} disabled={busy}>
-      {busy ? "Preparing PDF…" : "Export as PDF"}
+    <button
+      type="button"
+      className={compact ? "card-action" : "btn btn-ghost"}
+      onClick={exportPdf}
+      disabled={busy}
+    >
+      {busy ? "Preparing…" : compact ? "Export PDF" : "Export as PDF"}
     </button>
   );
 }

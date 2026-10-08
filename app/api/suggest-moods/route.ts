@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateJson } from "@/lib/ai";
 import { moodsPrompt } from "@/lib/prompts";
-import { aiFailure, aiGate, getSession, jsonError, readBody, textField } from "@/lib/route-helpers";
+import { aiFailure, crisisGate, getCaller, jsonError, readBody, textField } from "@/lib/route-helpers";
 import type { ApiError, Mood, SuggestMoodsResponse } from "@/types";
 
 const MAX_MOODS = 6;
@@ -33,8 +33,8 @@ function toMoods(data: unknown): Mood[] {
 export async function POST(
   request: Request,
 ): Promise<NextResponse<SuggestMoodsResponse | ApiError>> {
-  const session = await getSession();
-  if (!session) return jsonError("Not signed in", 401);
+  const caller = await getCaller(request);
+  if (caller.error) return caller.error;
 
   const body = await readBody(request);
   const situation = textField(body?.situation);
@@ -43,7 +43,7 @@ export async function POST(
     return jsonError("situation and automaticThought are required", 400);
   }
 
-  const blocked = aiGate(session.preferences, [situation, automaticThought]);
+  const blocked = crisisGate([situation, automaticThought]);
   if (blocked) return blocked;
 
   try {

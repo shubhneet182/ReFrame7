@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateJson } from "@/lib/ai";
 import { balancedPrompt } from "@/lib/prompts";
-import { aiFailure, aiGate, getSession, jsonError, readBody, textField } from "@/lib/route-helpers";
+import { aiFailure, crisisGate, getCaller, jsonError, readBody, textField } from "@/lib/route-helpers";
 import type { ApiError, GenerateBalancedResponse, Mood } from "@/types";
 
 function toMoods(value: unknown): Mood[] {
@@ -17,8 +17,8 @@ function toMoods(value: unknown): Mood[] {
 export async function POST(
   request: Request,
 ): Promise<NextResponse<GenerateBalancedResponse | ApiError>> {
-  const session = await getSession();
-  if (!session) return jsonError("Not signed in", 401);
+  const caller = await getCaller(request);
+  if (caller.error) return caller.error;
 
   const body = await readBody(request);
   const situation = textField(body?.situation);
@@ -36,7 +36,7 @@ export async function POST(
     return jsonError("All columns are required (situation and hotThought must not be empty)", 400);
   }
 
-  const blocked = aiGate(session.preferences, [
+  const blocked = crisisGate([
     situation,
     automaticThoughts,
     hotThought,

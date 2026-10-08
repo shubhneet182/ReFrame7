@@ -2,21 +2,49 @@ import { NextResponse } from "next/server";
 import { generateJson } from "@/lib/ai";
 import { detectCrisis } from "@/lib/crisis";
 import { similarityPrompt } from "@/lib/prompts";
-import { getSession, jsonError, readBody, textField } from "@/lib/route-helpers";
+import { getCaller, jsonError, readBody, textField } from "@/lib/route-helpers";
 import { WORD_SIMILARITY_THRESHOLD, wordSimilarity } from "@/lib/similarity";
-import type { ApiError, DetectSimilarityResponse, ThoughtRecord } from "@/types";
+import type { ApiError, DetectSimilarityResponse, SimilarityCandidate } from "@/types";
 
 /** How many recent completed records are compared. */
 const MAX_CANDIDATES = 20;
 
-type Candidate = Pick<
-  ThoughtRecord,
-  "id" | "created_at" | "situation" | "hot_thought" | "balanced_thought"
->;
+/** Guests send their session records; keep only well-formed ones. */
+function guestCandidates(value: unknown): SimilarityCandidate[] {
+  if (!Array.isArray(value)) return [];
+  const candidates: SimilarityCandidate[] = [];
+  for (const item of value.slice(0, MAX_CANDIDATES)) {
+    const c = (item ?? {}) as Record<string, unknown>;
+    const situation = textField(c.situation);
+    const hotThought = textField(c.hot_thought);
+    const balanced = textField(c.balanced_thought);
+    if (
+      typeof c.id !== "string" ||
+      typeof c.created_at !== "string" ||
+      situation === null ||
+      hotThought === null ||
+      balanced === null
+    ) {
+      continue;
+    }
+    candidates.push({
+      id: c.id,
+      created_at: c.created_at,
+      situation,
+      hot_thought: hotThought,
+      balanced_thought: balanced,
+    });
+  }
+  return candidates;
+}
 
-function byWords(situation: string, hotThought: string, candidates: Candidate[]): Candidate | null {
+function byWords(
+  situation: string,
+  hotThought: string,
+  candidates: SimilarityCandidate[],
+): SimilarityCandidate | null {
   const current = `${situation}\n${hotThought}`;
-  let best: Candidate | null = null;
+  let best: SimilarityCandidate | null = null;
   let bestScore = WORD_SIMILARITY_THRESHOLD;
 
   for (const candidate of candidates) {
@@ -32,8 +60,8 @@ function byWords(situation: string, hotThought: string, candidates: Candidate[])
 async function byAi(
   situation: string,
   hotThought: string,
-  candidates: Candidate[],
-): Promise<Candidate | null> {
+  candidates: SimilarityCandidate[],
+): Promise<SimilarityCandidate | null> {
   const { data } = await generateJson(similarityPrompt(situation, hotThought, candidates));
   const match = (data as { match?: unknown }).match;
   if (typeof match !== "number" || !Number.isInteger(match)) return null;
@@ -43,8 +71,9 @@ async function byAi(
 export async function POST(
   request: Request,
 ): Promise<NextResponse<DetectSimilarityResponse | ApiError>> {
-  const session = await getSession();
-  if (!session) return jsonError("Not signed in", 401);
+  const caller = await getCaller(request);
+  if (caller.error) return caller.error;
+  const { user, supabase } = caller.viewer;
 
   const body = await readBody(request);
   const situation = textField(body?.situation);
@@ -53,39 +82,42 @@ export async function POST(
     return jsonError("situation and hotThought are required", 400);
   }
 
-  // RLS limits this to the signed-in user's own records.
-  const { data, error } = await session.supabase
-    .from("thought_records")
-    .select("id, created_at, situation, hot_thought, balanced_thought")
-    .eq("is_complete", true)
-    .neq("balanced_thought", "")
-    .order("created_at", { ascending: false })
-    .limit(MAX_CANDIDATES)
-    .returns<Candidate[]>();
+  let candidates: SimilarityCandidate[];
+  if (user) {
+    // RLS limits this to the signed-in user's own records.
+    const { data, error } = await supabase
+      .from("thought_records")
+      .select("id, created_at, situation, hot_thought, balanced_thought")
+      .eq("is_complete", true)
+      .neq("balanced_thought", "")
+      .order("created_at", { ascending: false })
+      .limit(MAX_CANDIDATES)
+      .returns<SimilarityCandidate[]>();
 
-  if (error) {
-    console.error("[detect-similarity]", error.message);
-    return jsonError("Could not read past records", 500);
+    if (error) {
+      console.error("[detect-similarity]", error.message);
+      return jsonError("Could not read past records", 500);
+    }
+    candidates = data ?? [];
+  } else {
+    candidates = guestCandidates(body?.candidates);
   }
 
-  const candidates = (data ?? []).filter((c) => c.balanced_thought.trim());
+  candidates = candidates.filter((c) => c.balanced_thought.trim());
   if (candidates.length === 0) return NextResponse.json({ similar: null });
 
-  // AI judges meaning when the user has consented; otherwise (or if it fails)
-  // fall back to word overlap, which never leaves the server.
-  const useAi =
-    session.preferences.ai_enabled === true && !detectCrisis(`${situation}\n${hotThought}`);
-
-  let match: Candidate | null;
-  if (useAi) {
+  // AI judges meaning; in a possible crisis, or if it fails, fall back to
+  // word overlap, which never leaves the server.
+  let match: SimilarityCandidate | null;
+  if (detectCrisis(`${situation}\n${hotThought}`)) {
+    match = byWords(situation, hotThought, candidates);
+  } else {
     try {
       match = await byAi(situation, hotThought, candidates);
     } catch (aiError) {
       console.warn("[detect-similarity] AI comparison failed, using word overlap:", aiError);
       match = byWords(situation, hotThought, candidates);
     }
-  } else {
-    match = byWords(situation, hotThought, candidates);
   }
 
   return NextResponse.json({

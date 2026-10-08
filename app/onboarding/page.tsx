@@ -1,23 +1,18 @@
 import { redirect } from "next/navigation";
 import { CloudMascot } from "@/components/CloudMascot";
 import { OnboardingForm } from "@/components/OnboardingForm";
-import { createClient } from "@/lib/supabase/server";
-import type { UserPreferences } from "@/types";
+import { getViewer } from "@/lib/viewer";
 
 export const metadata = { title: "Your data — ReFrame7" };
 
 export default async function OnboardingPage() {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user, accepted } = await getViewer();
 
-  if (!user) redirect("/auth/login");
   // Shown once, until the notice is accepted.
-  if ((user.user_metadata as UserPreferences).privacy_accepted) redirect("/dashboard");
+  if (accepted) redirect("/dashboard");
 
   return (
-    <main className="content flex flex-col justify-center">
+    <main className="content narrow flex flex-col justify-center">
       <div className="mb-4 flex justify-center">
         <CloudMascot size={64} />
       </div>
@@ -26,13 +21,19 @@ export default async function OnboardingPage() {
         <h1 className="mb-3 text-base font-semibold text-blue">How ReFrame7 handles your data</h1>
         <ul className="space-y-3 text-sm leading-relaxed text-text2">
           <li>
-            <strong className="font-medium text-text">Your records.</strong> Your thought records
-            are stored securely in your account and are only visible to you.
+            <strong className="font-medium text-text">Without an account.</strong> You can use
+            everything without signing in. Your thought records stay in this browser tab only and
+            are cleared when you close it.
           </li>
           <li>
-            <strong className="font-medium text-text">AI suggestions.</strong> The text of your
-            record is sent to Claude to generate suggestions. Claude does not train on your
-            entries.
+            <strong className="font-medium text-text">With a free account.</strong> Your records
+            are stored securely in your account, are only visible to you, and are there when you
+            come back, on any device.
+          </li>
+          <li>
+            <strong className="font-medium text-text">AI suggestions.</strong> Either way, the
+            text of your record is sent to Claude to generate suggestions. Claude does not train
+            on your entries.
           </li>
           <li>
             <strong className="font-medium text-text">Your identity.</strong> Account details such
@@ -46,7 +47,7 @@ export default async function OnboardingPage() {
         accept, or ignore any suggestion.
       </p>
 
-      <OnboardingForm />
+      <OnboardingForm signedIn={Boolean(user)} />
     </main>
   );
 }

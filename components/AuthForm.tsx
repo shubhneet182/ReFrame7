@@ -150,6 +150,11 @@ export function AuthForm({ mode, initialNotice }: AuthFormProps) {
           {isRegister ? "Sign in" : "Create an account"}
         </Link>
       </p>
+      <p className="mt-2 text-center text-xs text-text3">
+        <Link href="/dashboard" className="text-blue">
+          Continue without an account
+        </Link>
+      </p>
     </AuthShell>
   );
 }

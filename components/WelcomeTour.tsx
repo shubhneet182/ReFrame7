@@ -16,7 +16,14 @@ const COLUMNS = [
   "Outcome — how you feel now",
 ];
 
-export function WelcomeTour({ aiEnabled }: { aiEnabled: boolean }) {
+export const TOUR_SEEN_KEY = "rf7_tour_seen";
+
+interface WelcomeTourProps {
+  signedIn: boolean;
+  onClose: () => void;
+}
+
+export function WelcomeTour({ signedIn, onClose }: WelcomeTourProps) {
   const router = useRouter();
   const [slide, setSlide] = useState(0);
   const [closing, setClosing] = useState(false);
@@ -45,10 +52,9 @@ export function WelcomeTour({ aiEnabled }: { aiEnabled: boolean }) {
       title: "You're always in control",
       body: (
         <p>
-          {aiEnabled
-            ? "AI can suggest mood labels, questions and a balanced thought. Every suggestion is labelled, and nothing is added to your record unless you choose it."
-            : "AI suggestions are off, so every word in your record is your own. You can fill each step at your own pace."}{" "}
-          Your progress is saved at each step, so you can pause and come back later.
+          AI can suggest mood labels, questions and a balanced thought. Every suggestion is
+          labelled, and nothing is added to your record unless you choose it. Your progress is
+          saved at each step.
         </p>
       ),
     },
@@ -57,8 +63,11 @@ export function WelcomeTour({ aiEnabled }: { aiEnabled: boolean }) {
       body: (
         <>
           <p>
-            Completed records are kept here. When a new situation resembles an earlier one, your
-            own past balanced thought is shown again as a reminder.
+            When a new situation resembles an earlier one, your own past balanced thought is shown
+            again as a reminder.{" "}
+            {signedIn
+              ? "Your records are saved to your account."
+              : "Without an account, records last until you close this tab. Sign in to keep them."}
           </p>
           <p className="mt-2">
             ReFrame7 is a self-help tool, not a replacement for professional care. If you are in
@@ -71,13 +80,22 @@ export function WelcomeTour({ aiEnabled }: { aiEnabled: boolean }) {
 
   const isLast = slide === slides.length - 1;
 
-  // Shown once: remembered on the account, not the device.
+  // Shown once: remembered on the account, or on this device for guests.
   async function close(startRecord: boolean) {
     setClosing(true);
-    const data: UserPreferences = { tour_seen: true };
-    await createClient().auth.updateUser({ data });
+    if (signedIn) {
+      const data: UserPreferences = { tour_seen: true };
+      await createClient().auth.updateUser({ data });
+    } else {
+      try {
+        localStorage.setItem(TOUR_SEEN_KEY, "1");
+      } catch {
+        // Private mode: the tour will just show again next time.
+      }
+    }
+    onClose();
     if (startRecord) router.push("/record/new");
-    router.refresh();
+    else router.refresh();
   }
 
   return (

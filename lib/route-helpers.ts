@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { AIUnavailableError } from "@/lib/ai";
 import { detectCrisis } from "@/lib/crisis";
-import { createClient } from "@/lib/supabase/server";
-import type { ApiError, UserPreferences } from "@/types";
+import { allowRequest, clientKey } from "@/lib/rate-limit";
+import { getViewer } from "@/lib/viewer";
+import type { ApiError } from "@/types";
 
 const MAX_TEXT = 10_000;
 
@@ -26,27 +27,33 @@ export function textField(value: unknown): string | null {
   return typeof value === "string" && value.length <= MAX_TEXT ? value : null;
 }
 
-export async function getSession() {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user ? { user, supabase, preferences: user.user_metadata as UserPreferences } : null;
+type Viewer = Awaited<ReturnType<typeof getViewer>>;
+
+/**
+ * Entry check for the AI routes, which are open to guests as well as
+ * signed-in users. Returns the viewer, or an error response.
+ */
+export async function getCaller(
+  request: Request,
+): Promise<{ viewer: Viewer; error?: undefined } | { viewer?: undefined; error: NextResponse<ApiError> }> {
+  if (!allowRequest(clientKey(request))) {
+    return { error: jsonError("Too many requests. Please wait a few minutes.", 429) };
+  }
+  const viewer = await getViewer();
+  if (!viewer.accepted) {
+    return { error: jsonError("The data-handling notice has not been accepted", 403) };
+  }
+  return { viewer };
 }
 
 /**
- * Gate for anything that sends the user's writing to an AI provider.
+ * In a possible crisis the app shows support resources, not AI text.
  * Returns an error response, or null when the request may proceed.
  */
-export function aiGate(preferences: UserPreferences, texts: string[]): NextResponse<ApiError> | null {
-  if (preferences.ai_enabled !== true) {
-    return jsonError("AI suggestions are turned off for this account", 403);
-  }
-  // In a possible crisis the app shows support resources, not AI text.
-  if (detectCrisis(texts.join("\n"))) {
-    return jsonError("AI suggestions are paused while crisis resources are shown", 409);
-  }
-  return null;
+export function crisisGate(texts: string[]): NextResponse<ApiError> | null {
+  return detectCrisis(texts.join("\n"))
+    ? jsonError("AI suggestions are paused while crisis resources are shown", 409)
+    : null;
 }
 
 export function aiFailure(route: string, error: unknown): NextResponse<ApiError> {

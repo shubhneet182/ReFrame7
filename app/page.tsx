@@ -1,11 +1,7 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 
-export default async function LandingPage() {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  redirect(user ? "/dashboard" : "/auth/login");
+// No sign-in wall: everyone lands on the home screen (which shows the
+// data-handling notice first if it hasn't been accepted yet).
+export default function LandingPage() {
+  redirect("/dashboard");
 }

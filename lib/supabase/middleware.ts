@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-/** Refreshes the auth session cookie and gates the signed-in pages. */
+/** Refreshes the auth session cookie and forwards emailed auth codes. */
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -42,14 +42,9 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  const isPublic = pathname.startsWith("/auth") || pathname.startsWith("/api");
-
-  if (!user && !isPublic) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/auth/login";
-    url.search = "";
-    return NextResponse.redirect(url);
-  }
+  // No sign-in wall: guests use the whole app, with records kept in their
+  // browser session. Each page decides what to show for a guest.
+  void user;
 
   return response;
 }

@@ -70,6 +70,47 @@ Reply as: {"balancedThought":"..."}`,
   };
 }
 
+/** The only pattern names the analysis may return. */
+export const THINKING_PATTERNS = [
+  "All-or-nothing thinking",
+  "Overgeneralisation",
+  "Catastrophising",
+  "Mind reading",
+  "Fortune telling",
+  "Emotional reasoning",
+  "Should statements",
+  "Labelling",
+  "Personalisation",
+  "Mental filter",
+  "Discounting the positive",
+];
+
+export function patternsPrompt(
+  thoughts: { hotThought: string; automaticThoughts: string }[],
+): AIRequest {
+  const records = thoughts
+    .map(
+      (t, index) =>
+        `<entry name="record ${index + 1}">\nHot thought: ${t.hotThought.trim()}\nAutomatic thoughts: ${t.automaticThoughts.trim() || "(left blank)"}\n</entry>`,
+    )
+    .join("\n");
+
+  return {
+    system: BASE,
+    prompt: `${records}
+
+These are the thoughts from ${thoughts.length} of this person's thought records. Look for common thinking patterns (cognitive distortions) across them.
+
+Use only these pattern names, spelled exactly: ${THINKING_PATTERNS.join("; ")}.
+
+For each record, decide which patterns (at most two) its thoughts clearly show. Then report up to four patterns, most frequent first, with "count" = the number of records showing it. Leave out any pattern you are not reasonably confident about; an empty list is a fine answer.
+
+For each pattern write one "explanation" sentence in plain language, addressed to the person as "you", describing how it tends to show up in their thoughts. Be tentative ("may", "seems to") and kind. These are everyday habits of thought, not faults or diagnoses.
+
+Reply as: {"patterns":[{"name":"...","count":2,"explanation":"..."}]}`,
+  };
+}
+
 export interface SimilarityCandidate {
   situation: string;
   hot_thought: string;

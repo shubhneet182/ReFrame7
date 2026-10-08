@@ -1,42 +1,36 @@
 import { redirect } from "next/navigation";
+import { GuestRecordFlow } from "@/components/GuestRecordFlow";
 import { RecordFlow } from "@/components/RecordFlow";
-import { createClient } from "@/lib/supabase/server";
-import type { ThoughtRecord, UserPreferences } from "@/types";
+import { getViewer } from "@/lib/viewer";
+import type { ThoughtRecord } from "@/types";
 
-export const metadata = { title: "New thought record — ReFrame7" };
+export const metadata = { title: "Thought record — ReFrame7" };
 
 export default async function NewRecordPage({
   searchParams,
 }: {
+  /** `resume` continues an in-progress record or edits a completed one. */
   searchParams: { resume?: string };
 }) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user, supabase, accepted } = await getViewer();
+  if (!accepted) redirect("/onboarding");
 
-  if (!user) redirect("/auth/login");
+  const resumeId = searchParams.resume;
 
-  const preferences = user.user_metadata as UserPreferences;
-  if (!preferences.privacy_accepted) redirect("/onboarding");
+  if (!user) {
+    return resumeId ? <GuestRecordFlow resumeId={resumeId} /> : <RecordFlow userId={null} />;
+  }
 
   let initialRecord: ThoughtRecord | undefined;
-  if (searchParams.resume) {
+  if (resumeId) {
     const { data } = await supabase
       .from("thought_records")
       .select("*")
-      .eq("id", searchParams.resume)
-      .eq("is_complete", false)
+      .eq("id", resumeId)
       .maybeSingle<ThoughtRecord>();
     if (!data) redirect("/dashboard");
     initialRecord = data;
   }
 
-  return (
-    <RecordFlow
-      userId={user.id}
-      aiEnabled={preferences.ai_enabled === true}
-      initialRecord={initialRecord}
-    />
-  );
+  return <RecordFlow userId={user.id} initialRecord={initialRecord} />;
 }

@@ -20,6 +20,8 @@ export interface ThoughtRecord {
   balanced_thought: string;
   /** The AI suggestion as generated, kept separately from the user's own wording. */
   balanced_thought_ai: string | null;
+  /** How much the user believes their balanced thought, 0–100. */
+  balanced_belief: number | null;
   outcome_moods: Mood[];
   is_complete: boolean;
   similar_record_id: string | null;
@@ -89,12 +91,33 @@ export type SimilarRecord = Pick<
   "id" | "created_at" | "situation" | "balanced_thought"
 >;
 
+export type SimilarityCandidate = Pick<
+  ThoughtRecord,
+  "id" | "created_at" | "situation" | "hot_thought" | "balanced_thought"
+>;
+
 export interface DetectSimilarityRequest {
   situation: string;
   hotThought: string;
+  /** Guests only: their session records, since the server has none to query. */
+  candidates?: SimilarityCandidate[];
 }
 export interface DetectSimilarityResponse {
   similar: SimilarRecord | null;
+}
+
+export interface ThinkingPattern {
+  name: string;
+  /** How many of the analysed records show it. */
+  count: number;
+  explanation: string;
+}
+
+export interface AnalyzePatternsRequest {
+  thoughts: { hotThought: string; automaticThoughts: string }[];
+}
+export interface AnalyzePatternsResponse {
+  patterns: ThinkingPattern[];
 }
 
 export interface CrisisCheckRequest {

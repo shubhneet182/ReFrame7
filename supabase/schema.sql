@@ -13,6 +13,7 @@ create table if not exists public.thought_records (
   evidence_against text not null default '',
   balanced_thought text not null default '',
   balanced_thought_ai text,
+  balanced_belief smallint check (balanced_belief between 0 and 100),
   outcome_moods jsonb not null default '[]'::jsonb,
   is_complete boolean not null default false,
   similar_record_id uuid references public.thought_records (id) on delete set null,

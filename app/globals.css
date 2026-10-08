@@ -375,6 +375,147 @@
     color: var(--blue);
   }
 
+  /* ---------- Wide-screen layout ----------
+     Phones keep the single column. From tablet width the shell widens and
+     lists become grids; from laptop width the record flow and record view
+     use the horizontal space. */
+
+  /* Forms and notices stay a narrow centred card at every size. */
+  .narrow {
+    @apply mx-auto w-full max-w-md;
+  }
+
+  .card-grid {
+    @apply mb-3 grid gap-2;
+  }
+  .card-grid > * {
+    margin-bottom: 0;
+  }
+  .card-grid:empty {
+    display: none;
+  }
+
+  .wide-only {
+    display: none;
+  }
+
+  @media (min-width: 768px) {
+    .app-shell {
+      max-width: 64rem;
+    }
+    .app-header,
+    .content {
+      @apply px-6;
+    }
+    .card-grid {
+      grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+      gap: 0.75rem;
+    }
+    .trend-grid {
+      @apply grid grid-cols-2 gap-x-10;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .wide-only {
+      display: block;
+    }
+
+    /* Record flow: editor on the left, earlier answers pinned on the right. */
+    .flow {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+      grid-template-rows: auto auto 1fr;
+      column-gap: 2.5rem;
+      align-items: start;
+    }
+    .flow-top {
+      grid-column: 1 / -1;
+    }
+    .flow-top .stepper {
+      @apply max-w-md;
+    }
+    .flow-edit,
+    .flow-actions {
+      grid-column: 1;
+    }
+    .flow-side {
+      grid-column: 2;
+      grid-row: 2 / span 2;
+      position: sticky;
+      top: 1rem;
+    }
+
+    /* Record view: the seven-column worksheet. */
+    .app-shell:has(.record-table) {
+      max-width: 84rem;
+    }
+    .record-table {
+      @apply mb-4 grid overflow-hidden rounded-2xl bg-surface;
+      grid-template-columns: 1.1fr 0.9fr 1.3fr 1.3fr 1.3fr 1.3fr 0.9fr;
+      border: 1px solid var(--border2);
+    }
+    .record-table > .past-col {
+      @apply m-0 rounded-none bg-transparent px-3 py-3;
+      border: none;
+      border-left: 1px solid var(--border2);
+    }
+    .record-table > .past-col:first-child {
+      border-left: none;
+    }
+    /* Column heading band. */
+    .record-table > .past-col > .past-col-label:first-child {
+      @apply -mx-3 -mt-3 mb-3 px-3 py-2.5 text-[11px] text-text2;
+      background: var(--past-bg);
+      border-bottom: 1px solid var(--border2);
+      min-height: 3.25rem;
+    }
+    .record-table .mood-row {
+      @apply flex-col items-start;
+    }
+  }
+
+  /* Below the laptop breakpoint the flow's side pane sits under the editor. */
+  @media (max-width: 1023px) {
+    .flow-side {
+      @apply mt-5;
+    }
+  }
+
+  .card-actions {
+    @apply mt-3 flex flex-wrap gap-2 pt-2.5;
+    border-top: 1px solid var(--border);
+  }
+  .card-action {
+    @apply rounded-full px-3 py-1.5 text-xs font-medium text-text2;
+    border: 1px solid var(--border2);
+    transition: all 0.15s;
+  }
+  .card-action:hover:not(:disabled) {
+    border-color: var(--blue);
+    color: var(--blue);
+  }
+  .card-action:disabled {
+    @apply opacity-50;
+  }
+
+  .guest-note {
+    @apply mb-3 rounded-xl px-3 py-2.5 text-xs leading-relaxed text-text2;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+  }
+
+  .modal-backdrop {
+    @apply fixed inset-0 z-40 flex items-center justify-center p-5;
+    background: rgba(20, 18, 16, 0.6);
+  }
+  .modal {
+    @apply w-full max-w-sm rounded-3xl bg-surface p-6 text-center;
+    border: 1px solid var(--border);
+    max-height: 90dvh;
+    overflow-y: auto;
+  }
+
   /* Launch screen, shown once per session (see components/Splash.tsx). */
   .splash {
     @apply fixed inset-0 z-50 flex flex-col items-center justify-center bg-bg px-6;
@@ -387,7 +528,7 @@
     display: none;
   }
 
-  /* Main tabs: fixed bottom bar on phones, left rail from tablet width up. */
+  /* Main tabs: fixed bottom bar on phones, in the page header from tablet width up. */
   .tab-nav {
     @apply fixed inset-x-0 bottom-0 z-20 flex bg-bg;
     border-top: 1px solid var(--border);
@@ -407,18 +548,86 @@
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
   }
 
+  .tab-nav-top {
+    display: none;
+  }
+
   @media (min-width: 768px) {
     .tab-nav {
-      @apply inset-x-auto inset-y-0 left-0 w-24 flex-col justify-center gap-3;
-      border-top: none;
-      border-right: 1px solid var(--border);
-      padding: 0;
+      display: none;
     }
-    .tab-item {
-      @apply flex-none py-3 text-xs;
+    .tab-nav-top {
+      @apply mr-2 flex items-center gap-1;
+    }
+    .tab-nav-top .tab-item {
+      @apply flex-none flex-row gap-1.5 rounded-full px-3 py-2 text-[13px] font-medium;
+    }
+    .tab-nav-top .tab-item svg {
+      @apply h-[18px] w-[18px];
+    }
+    .tab-nav-top .tab-item.on {
+      background: var(--surface2);
     }
     .has-tabs {
       @apply pb-4;
+    }
+  }
+
+  /* Headline numbers on the Trends page. */
+  .stat-row {
+    @apply grid grid-cols-2 gap-2;
+  }
+  .stat-tile {
+    @apply rounded-2xl bg-surface p-3.5;
+    border: 1px solid var(--border);
+  }
+  .stat-label {
+    @apply text-[11px] leading-snug text-text3;
+  }
+  .stat-value {
+    @apply mt-1 text-2xl font-semibold leading-tight text-text;
+  }
+  .stat-note {
+    @apply mt-0.5 text-[11px] text-text3;
+  }
+
+  /* One record per row: stacked on phones, a four-column table when wide. */
+  .trend-table {
+    @apply overflow-hidden rounded-2xl bg-surface text-xs text-text2;
+    border: 1px solid var(--border);
+  }
+  .trend-table-head {
+    display: none;
+  }
+  .trend-table-row {
+    @apply grid gap-1 px-3.5 py-3;
+    border-top: 1px solid var(--border);
+    transition: background-color 0.15s;
+  }
+  .trend-table-row:first-of-type {
+    border-top: none;
+  }
+  .trend-table-row:hover {
+    background: var(--surface2);
+  }
+
+  @media (min-width: 768px) {
+    .stat-row {
+      @apply grid-cols-4 gap-3;
+    }
+    .trend-table-head,
+    .trend-table-row {
+      display: grid;
+      grid-template-columns: 5rem minmax(0, 1fr) 15rem 4rem;
+      @apply items-center gap-4 px-4;
+    }
+    .trend-table-head {
+      @apply py-2.5 text-[11px] font-semibold uppercase text-text3;
+      letter-spacing: 0.06em;
+      background: var(--surface2);
+    }
+    .trend-table-row:first-of-type {
+      border-top: 1px solid var(--border);
     }
   }
 

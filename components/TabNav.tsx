@@ -57,12 +57,15 @@ const TABS = [
   },
 ];
 
-/** Bottom bar on phones, side rail from tablet width up. */
-export function TabNav() {
+/**
+ * The main tabs. "bottom" is the fixed bar on phones; "top" sits in the page
+ * header from tablet width up. CSS shows one or the other.
+ */
+export function TabNav({ placement = "bottom" }: { placement?: "bottom" | "top" }) {
   const pathname = usePathname();
 
   return (
-    <nav className="tab-nav" aria-label="Main">
+    <nav className={placement === "top" ? "tab-nav-top" : "tab-nav"} aria-label="Main">
       {TABS.map((tab) => {
         const active = pathname === tab.href;
         return (

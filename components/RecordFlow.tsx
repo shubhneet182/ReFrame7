@@ -3,11 +3,18 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { CloudMascot } from "@/components/CloudMascot";
 import { CrisisBanner } from "@/components/CrisisBanner";
 import { MoodEditor } from "@/components/MoodEditor";
 import { postJson } from "@/lib/api";
 import { CRISIS_RESOURCES, detectCrisis } from "@/lib/crisis";
 import { formatDate } from "@/lib/format";
+import {
+  getGuestRecord,
+  GUEST_USER_ID,
+  loadGuestRecords,
+  saveGuestRecord,
+} from "@/lib/guest-records";
 import { COMMON_MOODS } from "@/lib/moods";
 import { createClient } from "@/lib/supabase/client";
 import type {
@@ -76,18 +83,22 @@ function firstOpenStep(record: ThoughtRecord): number {
 }
 
 interface RecordFlowProps {
-  userId: string;
-  aiEnabled: boolean;
-  /** An in-progress record to resume. */
+  /** Null for a guest, whose record is kept in the browser session. */
+  userId: string | null;
+  aiEnabled?: boolean;
+  /** An in-progress record to continue, or a completed one to edit. */
   initialRecord?: ThoughtRecord;
 }
 
-export function RecordFlow({ userId, aiEnabled, initialRecord }: RecordFlowProps) {
+export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFlowProps) {
   const router = useRouter();
-  const startStep = initialRecord ? firstOpenStep(initialRecord) : 1;
+  // Editing a completed record: start at the top with every column reachable.
+  const editing = initialRecord?.is_complete === true;
+  const startStep = initialRecord && !editing ? firstOpenStep(initialRecord) : 1;
 
   const [step, setStep] = useState(startStep);
-  const [maxStep, setMaxStep] = useState(startStep);
+  const [maxStep, setMaxStep] = useState(editing ? TOTAL : startStep);
+  const [celebrating, setCelebrating] = useState(false);
   const [recordId, setRecordId] = useState<string | null>(initialRecord?.id ?? null);
 
   const [situation, setSituation] = useState(initialRecord?.situation ?? "");
@@ -102,6 +113,7 @@ export function RecordFlow({ userId, aiEnabled, initialRecord }: RecordFlowProps
   const [balancedThoughtAi, setBalancedThoughtAi] = useState<string | null>(
     initialRecord?.balanced_thought_ai ?? null,
   );
+  const [belief, setBelief] = useState<number | null>(initialRecord?.balanced_belief ?? null);
   const [outcomeMoods, setOutcomeMoods] = useState<Mood[]>(initialRecord?.outcome_moods ?? []);
   const [similarId, setSimilarId] = useState<string | null>(
     initialRecord?.similar_record_id ?? null,
@@ -151,12 +163,33 @@ export function RecordFlow({ userId, aiEnabled, initialRecord }: RecordFlowProps
       evidence_against: evidenceAgainst,
       balanced_thought: balancedThought,
       balanced_thought_ai: balancedThoughtAi,
+      balanced_belief: balancedThought.trim() ? belief : null,
       outcome_moods: outcomeMoods,
-      is_complete: isComplete,
+      // A completed record stays completed while it is being edited.
+      is_complete: isComplete || editing,
       similar_record_id: similarId,
       crisis_flagged: crisisSeen || crisisNow,
       ai_enabled: aiEnabled,
     };
+
+    if (userId === null) {
+      const now = new Date().toISOString();
+      const id = recordId ?? crypto.randomUUID();
+      const saved = saveGuestRecord({
+        ...payload,
+        id,
+        user_id: GUEST_USER_ID,
+        created_at: getGuestRecord(id)?.created_at ?? now,
+        updated_at: now,
+      } as ThoughtRecord);
+      setSaving(false);
+      if (!saved) {
+        setSaveError("Couldn't save your record in this browser. Check that storage isn't blocked.");
+        return null;
+      }
+      setRecordId(id);
+      return id;
+    }
 
     const supabase = createClient();
     let id = recordId;
@@ -208,14 +241,37 @@ export function RecordFlow({ userId, aiEnabled, initialRecord }: RecordFlowProps
   async function finish() {
     const id = await persist(true);
     if (!id) return;
-    router.push(`/record/${id}`);
+    if (editing) {
+      router.push(`/record/${id}`);
+      router.refresh();
+    } else {
+      setCelebrating(true);
+    }
+  }
+
+  function closeCelebration() {
+    router.push("/dashboard");
     router.refresh();
   }
 
   async function checkSimilarity() {
+    const request: DetectSimilarityRequest = { situation, hotThought };
+    if (userId === null) {
+      // The server has no copy of a guest's records, so send this session's.
+      request.candidates = loadGuestRecords()
+        .filter((r) => r.is_complete && r.id !== recordId && r.balanced_thought.trim())
+        .map(({ id, created_at, situation: s, hot_thought, balanced_thought }) => ({
+          id,
+          created_at,
+          situation: s,
+          hot_thought,
+          balanced_thought,
+        }));
+      if (request.candidates.length === 0) return;
+    }
     const result = await postJson<DetectSimilarityRequest, DetectSimilarityResponse>(
       "/api/detect-similarity",
-      { situation, hotThought },
+      request,
     );
     if (result?.similar) {
       setSimilar(result.similar);
@@ -302,12 +358,13 @@ export function RecordFlow({ userId, aiEnabled, initialRecord }: RecordFlowProps
   return (
     <>
       <AppHeader
-        title={initialRecord ? "Continue thought record" : "New thought record"}
+        title={editing ? "Edit thought record" : initialRecord ? "Continue thought record" : "New thought record"}
         subtitle={`Column ${step} of ${TOTAL} — ${current.label}`}
         backHref="/dashboard"
       />
 
-      <main className="content">
+      <main className="content flow">
+        <div className="flow-top">
         <nav className="stepper" aria-label="Columns">
           {STEPS.map((s, index) => {
             const n = index + 1;
@@ -337,7 +394,9 @@ export function RecordFlow({ userId, aiEnabled, initialRecord }: RecordFlowProps
             <p className="aff-date">From your {formatDate(similar.created_at)} record</p>
           </div>
         )}
+        </div>
 
+        <div className="flow-edit">
         <h2 className="col-label">{current.label}</h2>
         <p className="col-hint">{current.hint}</p>
 
@@ -435,7 +494,8 @@ export function RecordFlow({ userId, aiEnabled, initialRecord }: RecordFlowProps
               aria-label={current.label}
             />
 
-            {aiEnabled && (
+            {/* Column 4 is the user's own evidence only; AI questions are offered on column 5. */}
+            {aiEnabled && evidenceColumn === 5 && (
               <button
                 type="button"
                 className="ai-btn"
@@ -447,7 +507,7 @@ export function RecordFlow({ userId, aiEnabled, initialRecord }: RecordFlowProps
               </button>
             )}
 
-            {(questions[evidenceColumn]?.length ?? 0) > 0 && (
+            {evidenceColumn === 5 && (questions[5]?.length ?? 0) > 0 && (
               <div className="ai-suggestion">
                 <p className="ai-tag">✦ AI-generated questions — answer in your own words</p>
                 <ul className="list-disc space-y-1.5 pl-4">
@@ -487,6 +547,32 @@ export function RecordFlow({ userId, aiEnabled, initialRecord }: RecordFlowProps
               aria-label="Balanced thought"
             />
 
+            {balancedThought.trim() && (
+              <div className="card mt-3">
+                <div className="flex items-center gap-2">
+                  <label htmlFor="belief" className="card-title mb-0 flex-1">
+                    How much do you believe this thought?
+                  </label>
+                  <span className="text-xs text-text2">
+                    {belief === null ? "Not rated" : `${belief}%`}
+                  </span>
+                </div>
+                <input
+                  id="belief"
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={belief ?? 50}
+                  onChange={(e) => setBelief(Number(e.target.value))}
+                  className="mood-slider"
+                />
+                <p className="text-[11px] text-text3">
+                  0% is not at all, 100% is completely. There is no right answer.
+                </p>
+              </div>
+            )}
+
             {aiEnabled && (
               <button
                 type="button"
@@ -513,8 +599,17 @@ export function RecordFlow({ userId, aiEnabled, initialRecord }: RecordFlowProps
           </p>
         )}
 
+        </div>
+
+        {/* Earlier answers: below the editor on phones, a side pane on wide screens. */}
+        <aside className="flow-side">
+        {step === 1 && (
+          <p className="wide-only text-xs leading-relaxed text-text3">
+            Your earlier answers will appear here as you move through the columns.
+          </p>
+        )}
         {step >= 2 && (
-          <section className="mt-5">
+          <section>
             <h3 className="section-label">Completed columns</h3>
             <div className="past-col">
               <p className="past-col-label">Column 1 — Situation</p>
@@ -538,8 +633,29 @@ export function RecordFlow({ userId, aiEnabled, initialRecord }: RecordFlowProps
                 <p className="past-col-text">{hotThought}</p>
               </div>
             )}
+            {step >= 5 && evidenceFor.trim() && (
+              <div className="past-col wide-only">
+                <p className="past-col-label">Column 4 — Evidence for</p>
+                <p className="past-col-text">{evidenceFor}</p>
+              </div>
+            )}
+            {step >= 6 && evidenceAgainst.trim() && (
+              <div className="past-col wide-only">
+                <p className="past-col-label">Column 5 — Evidence against</p>
+                <p className="past-col-text">{evidenceAgainst}</p>
+              </div>
+            )}
+            {step >= 7 && balancedThought.trim() && (
+              <div className="past-col wide-only">
+                <p className="past-col-label">Column 6 — Balanced thought</p>
+                <p className="past-col-text">{balancedThought}</p>
+              </div>
+            )}
           </section>
         )}
+        </aside>
+
+        <div className="flow-actions">
 
         {saveError && (
           <p className="form-error" role="alert">
@@ -558,7 +674,13 @@ export function RecordFlow({ userId, aiEnabled, initialRecord }: RecordFlowProps
           </button>
         ) : (
           <button type="button" className="btn btn-primary mt-4" onClick={finish} disabled={saving}>
-            {saving ? "Saving…" : "Save and complete record"}
+            {saving ? "Saving…" : editing ? "Save changes" : "Save and complete record"}
+          </button>
+        )}
+
+        {editing && step < TOTAL && (
+          <button type="button" className="btn btn-ghost" onClick={finish} disabled={saving}>
+            Save changes and close
           </button>
         )}
 
@@ -567,7 +689,35 @@ export function RecordFlow({ userId, aiEnabled, initialRecord }: RecordFlowProps
             Back
           </button>
         )}
+        </div>
       </main>
+
+      {celebrating && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="done-title">
+          <div className="modal">
+            <div className="mb-2 flex justify-center">
+              <CloudMascot size={72} />
+            </div>
+            <h2 id="done-title" className="text-xl font-semibold text-blue">
+              Good job!
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed text-text2">
+              You worked through all seven columns. That takes real effort.
+            </p>
+
+            {balancedThought.trim() && (
+              <div className="aff-card mt-4 text-left">
+                <p className="aff-label">Repeat after me</p>
+                <p className="aff-text">“{balancedThought.trim()}”</p>
+              </div>
+            )}
+
+            <button type="button" className="btn btn-primary" onClick={closeCelebration} autoFocus>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
