@@ -1,0 +1,57 @@
+import { NextResponse } from "next/server";
+import { generateJson } from "@/lib/ai";
+import { moodsPrompt } from "@/lib/prompts";
+import { aiFailure, aiGate, getSession, jsonError, readBody, textField } from "@/lib/route-helpers";
+import type { ApiError, Mood, SuggestMoodsResponse } from "@/types";
+
+const MAX_MOODS = 6;
+
+function toMoods(data: unknown): Mood[] {
+  const raw = (data as { moods?: unknown }).moods;
+  if (!Array.isArray(raw)) return [];
+
+  const seen = new Set<string>();
+  const moods: Mood[] = [];
+  for (const item of raw) {
+    const { emotion, intensity } = (item ?? {}) as { emotion?: unknown; intensity?: unknown };
+    if (typeof emotion !== "string" || typeof intensity !== "number") continue;
+
+    const name = emotion.trim().slice(0, 40);
+    const key = name.toLowerCase();
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+
+    moods.push({
+      emotion: name,
+      intensity: Math.min(100, Math.max(0, Math.round(intensity / 5) * 5)),
+      ai_suggested: true,
+    });
+  }
+  return moods.slice(0, MAX_MOODS);
+}
+
+export async function POST(
+  request: Request,
+): Promise<NextResponse<SuggestMoodsResponse | ApiError>> {
+  const session = await getSession();
+  if (!session) return jsonError("Not signed in", 401);
+
+  const body = await readBody(request);
+  const situation = textField(body?.situation);
+  const automaticThought = textField(body?.automaticThought);
+  if (!situation?.trim() || automaticThought === null) {
+    return jsonError("situation and automaticThought are required", 400);
+  }
+
+  const blocked = aiGate(session.preferences, [situation, automaticThought]);
+  if (blocked) return blocked;
+
+  try {
+    const { data } = await generateJson(moodsPrompt(situation, automaticThought));
+    const moods = toMoods(data);
+    if (moods.length === 0) throw new Error("No usable moods in AI reply");
+    return NextResponse.json({ moods });
+  } catch (error) {
+    return aiFailure("suggest-moods", error);
+  }
+}
