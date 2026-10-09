@@ -3,7 +3,7 @@ import { CloudMascot } from "@/components/CloudMascot";
 import { OnboardingForm } from "@/components/OnboardingForm";
 import { getViewer } from "@/lib/viewer";
 
-export const metadata = { title: "Your data — ReFrame7" };
+export const metadata = { title: "ReFrame7" };
 
 export default async function OnboardingPage() {
   const { user, accepted } = await getViewer();
@@ -22,22 +22,24 @@ export default async function OnboardingPage() {
         <ul className="space-y-3 text-sm leading-relaxed text-text2">
           <li>
             <strong className="font-medium text-text">Without an account.</strong> You can use
-            everything without signing in. Your thought records stay in this browser tab only and
-            are cleared when you close it.
+            ReFrame7 without signing in. Your thought records stay in this browser and are cleared
+            when you close the tab.
           </li>
           <li>
             <strong className="font-medium text-text">With a free account.</strong> Your records
-            are stored securely in your account, are only visible to you, and are there when you
-            come back, on any device.
+            are securely saved to your account. Only you can see them, and they&apos;ll be there
+            whenever you come back, on any device.
           </li>
           <li>
-            <strong className="font-medium text-text">AI suggestions.</strong> Either way, the
-            text of your record is sent to Claude to generate suggestions. Claude does not train
-            on your entries.
+            <strong className="font-medium text-text">AI suggestions.</strong> AI helps turn your
+            thoughts into useful reflections and insights throughout the app. When AI is used,
+            you&apos;re in control of what you choose to write and share. Your entries are not used
+            to train the AI.
           </li>
           <li>
-            <strong className="font-medium text-text">Your identity.</strong> Account details such
-            as your name and email are never sent to AI.
+            <strong className="font-medium text-text">Your identity.</strong> Sensitive
+            information like your name or email stays separate from AI and is never shared with
+            it.
           </li>
         </ul>
       </div>

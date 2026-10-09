@@ -4,7 +4,7 @@ import { RecordFlow } from "@/components/RecordFlow";
 import { getViewer } from "@/lib/viewer";
 import type { ThoughtRecord } from "@/types";
 
-export const metadata = { title: "Thought record — ReFrame7" };
+export const metadata = { title: "ReFrame7" };
 
 export default async function NewRecordPage({
   searchParams,

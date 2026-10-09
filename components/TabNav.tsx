@@ -73,6 +73,7 @@ export function TabNav({ placement = "bottom" }: { placement?: "bottom" | "top" 
             key={tab.href}
             href={tab.href}
             className={`tab-item ${active ? "on" : ""}`}
+            data-tour={`tab-${tab.label.toLowerCase()}`}
             aria-current={active ? "page" : undefined}
           >
             {tab.icon}

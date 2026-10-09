@@ -41,9 +41,18 @@ export function AffirmationsView({ signedIn, serverRecords, loadError }: Affirma
           </p>
         )}
 
-        {affirmations.length > 0 && <h2 className="section-label">From your records</h2>}
+        {/* The start button sits at the top right, so a long list never pushes it away. */}
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h2 className="section-label mb-0">
+            {affirmations.length > 0 ? "From your records" : empty ? "Examples of balanced thoughts" : ""}
+          </h2>
+          <Link href="/record/new" className="btn btn-primary mt-0 w-auto shrink-0 px-4 py-2">
+            + Start new record
+          </Link>
+        </div>
 
-        <div className="card-grid">
+        {/* Masonry: short thoughts stack up instead of leaving gaps beside long ones. */}
+        <div className="masonry">
         {affirmations.map((affirmation) => (
           <Link key={affirmation.id} href={`/record/${affirmation.id}`} className="aff-card">
             <p className="aff-label">
@@ -63,23 +72,17 @@ export function AffirmationsView({ signedIn, serverRecords, loadError }: Affirma
               Nothing of your own here yet. Each record you complete adds its balanced thought to
               this page.
             </p>
-            <h2 className="section-label">Examples of balanced thoughts</h2>
-            <div className="card-grid">
+            <div className="masonry">
             {EXAMPLES.map((example) => (
               <div key={example} className="card">
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text3">
-                  Example — not from your records
-                </p>
-                <p className="text-sm italic leading-relaxed text-text2">“{example}”</p>
+                <p className="aff-label">Example — not from your records</p>
+                <p className="aff-text">“{example}”</p>
               </div>
             ))}
             </div>
           </>
         )}
 
-        <Link href="/record/new" className="btn btn-primary md:max-w-xs">
-          Start a new record
-        </Link>
       </main>
 
       <TabNav />

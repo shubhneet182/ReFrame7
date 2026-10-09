@@ -41,6 +41,10 @@ function toPatterns(data: unknown, recordCount: number): ThinkingPattern[] {
   return patterns.sort((a, b) => b.count - a.count).slice(0, 4);
 }
 
+// AI replies can take 20-30 seconds; without this, hosts such as Vercel stop
+// the request at their default limit (about 10 seconds on the free plan).
+export const maxDuration = 60;
+
 export async function POST(
   request: Request,
 ): Promise<NextResponse<AnalyzePatternsResponse | ApiError>> {

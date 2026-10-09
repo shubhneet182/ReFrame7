@@ -15,7 +15,9 @@ function field(name: string, value: string): string {
 }
 
 function moodList(moods: Mood[]): string {
-  return moods.map((m) => `${m.emotion} ${m.intensity}%`).join(", ");
+  return moods
+    .map((m) => `${m.emotion} ${m.intensity}%${m.examine ? " (the mood being examined)" : ""}`)
+    .join(", ");
 }
 
 export function moodsPrompt(situation: string, automaticThought: string): AIRequest {
@@ -54,7 +56,42 @@ Reply as: {"questions":["...","..."]}`,
   };
 }
 
+/** Ways into a balanced thought, so a second draft isn't the first one reworded. */
+const BALANCED_ANGLES = [
+  "what they would say to a close friend who was in exactly this situation",
+  "how they are likely to see this a month from now, looking back",
+  "what they can actually do next, and what is within their control",
+  "a kinder, self-compassionate reading that accepts the feeling without treating the thought as fact",
+];
+
+/**
+ * Lengths to rotate through on "regenerate", so drafts differ in size as well
+ * as angle. The first draft is always the standard two or three sentences.
+ */
+const BALANCED_LENGTHS = [
+  "in a single short sentence of no more than 20 words, something they could repeat to themselves",
+  "in two sentences",
+  "in three or four sentences, with a little more detail from their evidence",
+  "in one or two short, plain sentences",
+];
+
 export function balancedPrompt(input: GenerateBalancedRequest): AIRequest {
+  const previous = input.previous ?? [];
+  // Regeneration number: 0 for a first draft, then 1, 2, 3…
+  const attempt = Math.max(input.attempt ?? previous.length, previous.length);
+  const length =
+    attempt === 0
+      ? "in two or three sentences"
+      : BALANCED_LENGTHS[(attempt - 1) % BALANCED_LENGTHS.length];
+  const different =
+    previous.length === 0
+      ? ""
+      : `
+They have already seen the drafts below and asked for a different one. Do not rephrase them. Write a genuinely different balanced thought: open differently, use a different sentence structure, and lean on different parts of their evidence. This time, come at it from this angle: ${BALANCED_ANGLES[(attempt - 1) % BALANCED_ANGLES.length]}. Keep to the length asked for above even if the earlier drafts were longer or shorter.
+
+${previous.map((draft, i) => `<entry name="earlier draft ${i + 1}">\n${draft.trim()}\n</entry>`).join("\n")}
+`;
+
   return {
     system: BASE,
     prompt: `${field("situation", input.situation)}
@@ -64,8 +101,8 @@ ${field("hot thought", input.hotThought)}
 ${field("evidence for the hot thought", input.evidenceFor)}
 ${field("evidence against the hot thought", input.evidenceAgainst)}
 
-Draft one balanced thought this person could adopt or rewrite. Write it in the first person, in two or three sentences. It must take both sides of their evidence seriously: acknowledge what is true in the hot thought, then widen the view using their own evidence against it. Keep it realistic and believable, not relentlessly positive.
-
+Draft one balanced thought this person could adopt or rewrite. Write it in the first person, ${length}. It must take both sides of their evidence seriously: acknowledge what is true in the hot thought, then widen the view using their own evidence against it (in a very short draft, a brief nod to each side is enough). Keep it realistic and believable, not relentlessly positive.
+${different}
 Reply as: {"balancedThought":"..."}`,
   };
 }

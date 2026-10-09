@@ -40,6 +40,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["var(--font-dm-sans)", "-apple-system", "sans-serif"],
+        heading: ["var(--font-heading)", "var(--font-dm-sans)", "-apple-system", "sans-serif"],
       },
     },
   },

@@ -3,7 +3,7 @@ import { CloudMascot } from "@/components/CloudMascot";
 import { TabNav } from "@/components/TabNav";
 
 interface AppHeaderProps {
-  title: string;
+  title: React.ReactNode;
   subtitle?: string;
   backHref?: string;
   /** Replaces the mascot on the right. */

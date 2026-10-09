@@ -16,6 +16,10 @@ function toQuestions(data: unknown): string[] {
     .slice(0, MAX_QUESTIONS);
 }
 
+// AI replies can take 20-30 seconds; without this, hosts such as Vercel stop
+// the request at their default limit (about 10 seconds on the free plan).
+export const maxDuration = 60;
+
 export async function POST(
   request: Request,
 ): Promise<NextResponse<SuggestEvidenceResponse | ApiError>> {

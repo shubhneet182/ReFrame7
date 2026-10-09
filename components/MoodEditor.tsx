@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { examine } from "@/lib/moods";
 import type { Mood } from "@/types";
 
 interface MoodEditorProps {
@@ -10,6 +11,10 @@ interface MoodEditorProps {
   allowEditList?: boolean;
   /** Common moods offered as one-tap chips. */
   suggestions?: string[];
+  /** Let the user mark the one mood they want to examine. */
+  selectable?: boolean;
+  /** Re-rating: the original moods, to star the examined one and show each earlier rating. */
+  baseline?: Mood[];
 }
 
 export function MoodEditor({
@@ -17,6 +22,8 @@ export function MoodEditor({
   onChange,
   allowEditList = true,
   suggestions = [],
+  selectable = false,
+  baseline,
 }: MoodEditorProps) {
   const [draft, setDraft] = useState("");
 
@@ -35,6 +42,9 @@ export function MoodEditor({
     setDraft("");
   }
 
+  const before = (emotion: string) =>
+    baseline?.find((m) => m.emotion.toLowerCase() === emotion.toLowerCase());
+
   function setIntensity(index: number, intensity: number) {
     onChange(moods.map((m, i) => (i === index ? { ...m, intensity } : m)));
   }
@@ -42,12 +52,24 @@ export function MoodEditor({
   return (
     <div>
       {moods.map((mood, index) => (
-        <div key={mood.emotion} className="card">
+        <div
+          key={mood.emotion}
+          className={`card ${(selectable || baseline) && mood.examine ? "examined" : ""}`}
+        >
           <div className="flex items-center gap-2">
-            <span className="card-title mb-0 flex-1">{mood.emotion}</span>
-            {mood.ai_suggested && <span className="ai-tag mb-0">✦ AI suggested</span>}
+            <span className="card-title mb-0 flex-1">
+              {baseline && mood.examine && (
+                <span className="examined-star" title="The mood you chose to examine">
+                  ★{" "}
+                </span>
+              )}
+              {mood.emotion}
+            </span>
+            {mood.ai_suggested && <span className="ai-tag mb-0">
+                <span className="ai-spark">✦</span> AI suggested
+              </span>}
             <span className="w-10 text-right text-xs text-text2">{mood.intensity}%</span>
-            {allowEditList && (
+            {allowEditList && !before(mood.emotion) && (
               <button
                 type="button"
                 className="flex h-7 w-7 items-center justify-center text-lg text-text3"
@@ -66,8 +88,31 @@ export function MoodEditor({
             value={mood.intensity}
             onChange={(e) => setIntensity(index, Number(e.target.value))}
             className="mood-slider"
+            style={{ "--fill": `${mood.intensity}%` } as React.CSSProperties}
             aria-label={`${mood.emotion} intensity`}
           />
+          {baseline && (
+            <p className="text-xs text-text3">
+              {before(mood.emotion)
+                ? `Before: ${before(mood.emotion)?.intensity}%`
+                : "New mood"}
+              {mood.examine ? " · the mood you chose to examine" : ""}
+            </p>
+          )}
+          {selectable && (
+            <button
+              type="button"
+              role="radio"
+              aria-checked={mood.examine === true}
+              className={`examine-btn ${mood.examine ? "on" : ""}`}
+              onClick={() => onChange(examine(moods, mood.emotion))}
+            >
+              <svg className="examine-star" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 17.1 6.6 20l1.1-6.1-4.5-4.3 6.1-.8L12 3.2z" />
+              </svg>
+              {mood.examine ? "Examining this mood" : "Examine this mood"}
+            </button>
+          )}
         </div>
       ))}
 
@@ -83,7 +128,7 @@ export function MoodEditor({
                 add();
               }
             }}
-            placeholder="Add an emotion…"
+            placeholder={baseline ? "Add a new mood you notice…" : "Add an emotion…"}
             aria-label="Emotion"
           />
           <button

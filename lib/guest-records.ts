@@ -39,6 +39,10 @@ export function getGuestRecord(id: string): ThoughtRecord | undefined {
   return loadGuestRecords().find((r) => r.id === id);
 }
 
+export function deleteGuestRecord(id: string): boolean {
+  return store(loadGuestRecords().filter((r) => r.id !== id));
+}
+
 export function clearGuestRecords() {
   try {
     sessionStorage.removeItem(KEY);

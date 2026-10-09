@@ -3,7 +3,7 @@ import { RecordView } from "@/components/RecordView";
 import { getViewer } from "@/lib/viewer";
 import type { SimilarRecord, ThoughtRecord } from "@/types";
 
-export const metadata = { title: "Thought record — ReFrame7" };
+export const metadata = { title: "ReFrame7" };
 
 export default async function RecordPage({ params }: { params: { id: string } }) {
   const { user, supabase, accepted } = await getViewer();

@@ -1,14 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { AppName } from "@/components/AppName";
+import { DeleteRecordButton } from "@/components/DeleteRecordButton";
+import { ExportAllPdfButton } from "@/components/ExportAllPdfButton";
 import { ExportPdfButton } from "@/components/ExportPdfButton";
 import { ImportGuestRecords } from "@/components/ImportGuestRecords";
+import { MoodChip } from "@/components/MoodChip";
 import { SignOutButton } from "@/components/SignOutButton";
 import { TabNav } from "@/components/TabNav";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { TOUR_SEEN_KEY, WelcomeTour } from "@/components/WelcomeTour";
+import { TOUR_SEEN_KEY, tourIndexFor, WelcomeTour } from "@/components/WelcomeTour";
 import { formatDate, truncate } from "@/lib/format";
 import { useRecords } from "@/lib/guest-records";
 import type { ThoughtRecord } from "@/types";
@@ -25,7 +30,16 @@ interface DashboardViewProps {
 
 export function DashboardView({ userId, serverRecords, loadError, tourSeen }: DashboardViewProps) {
   const signedIn = userId !== null;
-  const { records, ready } = useRecords(serverRecords);
+  const router = useRouter();
+  const { records: loaded, ready } = useRecords(serverRecords);
+  // Hide a deleted record straight away, before the list is reloaded.
+  const [deleted, setDeleted] = useState<string[]>([]);
+  const records = loaded.filter((r) => !deleted.includes(r.id));
+
+  function onDeleted(id: string) {
+    setDeleted((ids) => [...ids, id]);
+    if (signedIn) router.refresh();
+  }
 
   const [tourDismissed, setTourDismissed] = useState(tourSeen);
   useEffect(() => {
@@ -37,7 +51,25 @@ export function DashboardView({ userId, serverRecords, loadError, tourSeen }: Da
     }
   }, [signedIn]);
 
-  const showTour = ready && !loadError && records.length === 0 && !tourDismissed;
+  // Opens by itself on a first visit, and again whenever the "?" button is pressed.
+  const [tourRequested, setTourRequested] = useState(false);
+  const [tourStart, setTourStart] = useState(0);
+
+  // Coming back from the record page part of the tour: carry on where it left off.
+  useEffect(() => {
+    const resumeAt = tourIndexFor("/dashboard");
+    if (resumeAt !== null) {
+      setTourStart(resumeAt);
+      setTourRequested(true);
+    }
+  }, []);
+  const showTour =
+    tourRequested || (ready && !loadError && records.length === 0 && !tourDismissed);
+
+  function closeTour() {
+    setTourDismissed(true);
+    setTourRequested(false);
+  }
 
   // Affirmation: the most recent record that matched a past one surfaces
   // that past record's balanced thought.
@@ -49,11 +81,23 @@ export function DashboardView({ userId, serverRecords, loadError, tourSeen }: Da
   return (
     <>
       <AppHeader
-        title="ReFrame7"
+        title={<AppName />}
         subtitle="Your thought records"
         tabs
         actions={
           <>
+            <button
+              type="button"
+              className="icon-btn w-9 px-0 text-sm font-semibold"
+              onClick={() => {
+                setTourStart(0);
+                setTourRequested(true);
+              }}
+              aria-label="Take the tour"
+              title="Take the tour"
+            >
+              ?
+            </button>
             <ThemeToggle />
             {signedIn ? (
               <SignOutButton />
@@ -69,7 +113,7 @@ export function DashboardView({ userId, serverRecords, loadError, tourSeen }: Da
       <main className="content has-tabs">
         {signedIn && <ImportGuestRecords userId={userId} />}
 
-        {!signedIn && ready && !showTour && (
+        {!signedIn && ready && (
           <p className="guest-note">
             You&apos;re using ReFrame7 without an account, so your records are kept in this tab
             only and are cleared when you close it.{" "}
@@ -90,13 +134,23 @@ export function DashboardView({ userId, serverRecords, loadError, tourSeen }: Da
           </Link>
         )}
 
-        {showTour && (
-          <div className="narrow">
-            <WelcomeTour signedIn={signedIn} onClose={() => setTourDismissed(true)} />
-          </div>
-        )}
-
-        {!showTour && <h2 className="section-label mt-1">Recent records</h2>}
+        {/* With records, the start button sits at the top right so a long list
+            never pushes it out of reach. */}
+        <div className="mb-2 mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <h2 className="section-label mb-0">Recent records</h2>
+          {records.length > 0 && (
+            <div className="ml-auto flex items-center gap-2">
+              <ExportAllPdfButton records={records} />
+              <Link
+                href="/record/new"
+                className="btn btn-primary mt-0 w-auto shrink-0 px-4 py-2"
+                data-tour="start"
+              >
+                + Start new record
+              </Link>
+            </div>
+          )}
+        </div>
 
         {loadError && (
           <p className="form-error mb-3" role="alert">
@@ -104,10 +158,15 @@ export function DashboardView({ userId, serverRecords, loadError, tourSeen }: Da
           </p>
         )}
 
-        {ready && !loadError && !showTour && records.length === 0 && (
-          <p className="mb-3 text-sm leading-relaxed text-text3">
-            No records yet. Start your first one when something is weighing on you.
-          </p>
+        {ready && !loadError && records.length === 0 && (
+          <div className="empty-state">
+            <p className="text-sm leading-relaxed text-text3">
+              No records yet. Start your first one when something is weighing on you.
+            </p>
+            <Link href="/record/new" className="btn btn-primary mt-4 max-w-xs" data-tour="start">
+              Start new record
+            </Link>
+          </div>
         )}
 
         <div className="card-grid">
@@ -123,9 +182,7 @@ export function DashboardView({ userId, serverRecords, loadError, tourSeen }: Da
               <p className="card-meta">{formatDate(record.created_at)}</p>
               <div className="mood-row">
                 {record.moods.map((mood) => (
-                  <span key={mood.emotion} className="mood">
-                    {mood.emotion} {mood.intensity}%
-                  </span>
+                  <MoodChip key={mood.emotion} mood={mood} />
                 ))}
                 <span className={`badge ${record.is_complete ? "badge-sage" : "badge-blue"}`}>
                   {record.is_complete ? "Completed" : "In progress"}
@@ -149,17 +206,28 @@ export function DashboardView({ userId, serverRecords, loadError, tourSeen }: Da
                   Continue
                 </Link>
               )}
+              <DeleteRecordButton record={record} signedIn={signedIn} onDeleted={onDeleted} />
             </div>
           </article>
         ))}
         </div>
 
-        {!showTour && (
+        {loadError && (
           <Link href="/record/new" className="btn btn-primary md:max-w-xs">
             Start new record
           </Link>
         )}
       </main>
+
+      {/* First visit: a walkthrough points at the tabs and the start button. */}
+      {showTour && (
+        <WelcomeTour
+          route="/dashboard"
+          startIndex={tourStart}
+          signedIn={signedIn}
+          onClose={closeTour}
+        />
+      )}
 
       <TabNav />
     </>

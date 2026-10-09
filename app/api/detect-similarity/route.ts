@@ -68,6 +68,10 @@ async function byAi(
   return candidates[match - 1] ?? null;
 }
 
+// AI replies can take 20-30 seconds; without this, hosts such as Vercel stop
+// the request at their default limit (about 10 seconds on the free plan).
+export const maxDuration = 60;
+
 export async function POST(
   request: Request,
 ): Promise<NextResponse<DetectSimilarityResponse | ApiError>> {

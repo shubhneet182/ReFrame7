@@ -14,6 +14,18 @@ function toMoods(value: unknown): Mood[] {
     .slice(0, 20);
 }
 
+/** Earlier drafts the user has already seen (at most the last three). */
+function toPrevious(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((v): v is string => typeof v === "string" && v.trim().length > 0 && v.length <= 2000)
+    .slice(-3);
+}
+
+// AI replies can take 20-30 seconds; without this, hosts such as Vercel stop
+// the request at their default limit (about 10 seconds on the free plan).
+export const maxDuration = 60;
+
 export async function POST(
   request: Request,
 ): Promise<NextResponse<GenerateBalancedResponse | ApiError>> {
@@ -54,6 +66,11 @@ export async function POST(
         hotThought,
         evidenceFor,
         evidenceAgainst,
+        previous: toPrevious(body?.previous),
+        attempt:
+          typeof body?.attempt === "number" && body.attempt >= 0 && body.attempt < 1000
+            ? Math.floor(body.attempt)
+            : undefined,
       }),
     );
     const balancedThought = (data as { balancedThought?: unknown }).balancedThought;

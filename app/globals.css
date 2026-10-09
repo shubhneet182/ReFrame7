@@ -14,12 +14,19 @@
   --sage-dark: #4A7A5A;
   --blush: #E8B4B8;
   --blush-pale: #FAE8EA;
+  --amber: #E5A93C;
+  --examined-fill: #3A7CA5;
+  --slider-fill: #7268A3;
   --cream: #F7F4F0;
   --warm-dark: #1A1714;
 }
 
 [data-theme="light"] {
   color-scheme: light;
+  /* Clear Cerulean: a deeper primary for light mode, so white button text
+     and blue links on cream stay readable. Dark mode keeps Soft Blue. */
+  --blue: #3A7CA5;
+  --blue-dark: #2E6384;
   --bg: var(--cream);
   --bg2: #EDEAE5;
   --surface: #FFFFFF;
@@ -30,9 +37,7 @@
   --text2: #5A5068;
   --text3: #8A8098;
   --text4: #B0A8B8;
-  --aff-bg: var(--blush-pale);
-  --aff-border: var(--blush);
-  --aff-label: #B06A72;
+  --aff-edge: #E2DDD5;
   --crisis-bg: #FDEAEA;
   --crisis-border: #F0A0A0;
   --crisis-title: #C04040;
@@ -44,6 +49,10 @@
   --past-border: #D8D0F0;
   --past-text: #5A4A90;
   --input-bg: #FAFAFA;
+  --slider-track: #E5E0D8;
+  --card-edge: #E5E0D8;
+  --ai-pill-bg: #EBE6F7;
+  --ai-pill-hover: #DDD5F2;
   --done-bg: var(--lavender-pale);
   --done-text: var(--lavender-dark);
   --badge-sage-bg: var(--sage-pale);
@@ -65,9 +74,7 @@
   --text2: #B8B0D0;
   --text3: #8F86A6;
   --text4: #5C556C;
-  --aff-bg: #2E2226;
-  --aff-border: #5A3F44;
-  --aff-label: var(--blush);
+  --aff-edge: #3A3530;
   --crisis-bg: #2A1A1A;
   --crisis-border: #6A2A2A;
   --crisis-title: #F08080;
@@ -79,6 +86,10 @@
   --past-border: #3A3560;
   --past-text: #A898D8;
   --input-bg: #141210;
+  --slider-track: #3F3A34;
+  --card-edge: #3A3530;
+  --ai-pill-bg: #3A3450;
+  --ai-pill-hover: #484062;
   --done-bg: #2A2538;
   --done-text: var(--lavender);
   --badge-sage-bg: #1A2820;
@@ -100,6 +111,15 @@
   }
 }
 
+@layer base {
+  /* App name and main headings use Plus Jakarta Sans; small uppercase
+     section labels are UI labels and stay in DM Sans. */
+  h1,
+  h2:not(.section-label) {
+    font-family: var(--font-heading), var(--font-dm-sans), -apple-system, sans-serif;
+  }
+}
+
 @layer components {
   /* Single mobile column, centred on larger screens. */
   .app-shell {
@@ -113,6 +133,11 @@
   }
   .app-name {
     @apply text-lg font-semibold tracking-tight text-blue;
+  }
+  /* The 7 in the ReFrame7 title. */
+  .brand-seven {
+    color: var(--amber);
+    font-weight: 700;
   }
   .header-sub {
     @apply text-xs text-text3;
@@ -149,9 +174,16 @@
   .mood-row {
     @apply flex flex-wrap gap-1.5;
   }
+  /* Mood pills: solid fills, no outlines. */
+  .mood-row {
+    @apply gap-2;
+  }
   .mood {
-    @apply rounded-full bg-surface2 px-2.5 py-1 text-[11px] text-lavender;
-    border: 1px solid var(--ai-border);
+    @apply rounded-full px-3 py-1.5 text-xs text-text;
+    background: var(--ai-pill-bg);
+  }
+  .mood strong {
+    @apply font-semibold;
   }
 
   .badge {
@@ -169,40 +201,96 @@
   }
 
   /* Affirmations: the user's own past balanced thoughts (blush accent). */
+  /* Affirmations: a white sheet with a faint edge and a thin sage line across
+     the top, for growth and resolution. */
   .aff-card {
-    @apply mb-3 block rounded-2xl p-3.5;
-    background: var(--aff-bg);
-    border: 1px solid var(--aff-border);
+    @apply mb-3 block rounded-2xl bg-surface p-4;
+    border: 1px solid var(--aff-edge);
+    border-top: 2px solid var(--sage);
+  }
+  a.aff-card {
+    transition: box-shadow 0.15s;
+  }
+  a.aff-card:hover {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07);
+  }
+  /* "Repeat after me": green, so it reads as encouragement, not a warning. */
+  .aff-card.affirm {
+    background: var(--badge-sage-bg);
+    border-color: var(--sage);
+  }
+  .aff-card.affirm .aff-label {
+    color: var(--badge-sage-text);
   }
   .aff-label {
-    @apply mb-1.5 text-[10px] font-semibold uppercase;
-    color: var(--aff-label);
-    letter-spacing: 0.08em;
+    @apply mb-2 text-[10.5px] font-bold uppercase text-text2;
+    font-family: var(--font-heading), var(--font-dm-sans), -apple-system, sans-serif;
+    letter-spacing: 0.1em;
   }
   .aff-text {
-    @apply text-sm italic leading-relaxed text-text;
+    @apply text-sm text-text;
+    line-height: 1.6;
   }
   .aff-date {
-    @apply mt-1.5 text-[11px] text-text3;
+    @apply mt-2.5 text-[11px] text-text3;
   }
 
+  /* Masonry columns: each card keeps its own height, so short ones stack. */
+  .masonry {
+    columns: 17rem;
+    column-gap: 0.75rem;
+  }
+  .masonry > * {
+    break-inside: avoid;
+    margin-bottom: 0.75rem;
+  }
+  .masonry:empty {
+    display: none;
+  }
+
+  /* Record progress: a track of seven steps that fills in as you go. */
   .stepper {
-    @apply mb-4 flex justify-between gap-1;
+    @apply mb-5 flex items-center;
   }
   .step {
-    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface text-xs font-medium text-text3;
-    border: 1px solid var(--border);
-    transition: all 0.15s;
+    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface text-xs font-semibold text-text3;
+    border: 1.5px solid var(--border2);
+    transition:
+      background-color 0.2s,
+      border-color 0.2s,
+      color 0.2s,
+      box-shadow 0.2s;
   }
+  .step:disabled {
+    cursor: default;
+  }
+  /* Reached: a soft tinted tick. */
   .step.done {
-    background: var(--done-bg);
-    color: var(--done-text);
-    border-color: var(--lavender);
+    background: color-mix(in srgb, var(--blue) 16%, var(--surface));
+    border-color: transparent;
+    color: var(--blue);
   }
+  .step.done:hover {
+    background: color-mix(in srgb, var(--blue) 28%, var(--surface));
+  }
+  /* Where you are: solid, with a halo. */
   .step.current {
     @apply text-white;
     background: var(--blue);
     border-color: var(--blue);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--blue) 22%, transparent);
+  }
+  .step:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 3px;
+  }
+  .step-line {
+    @apply mx-1 h-0.5 flex-1 rounded-full;
+    background: var(--border);
+    transition: background-color 0.2s;
+  }
+  .step-line.done {
+    background: color-mix(in srgb, var(--blue) 50%, var(--surface));
   }
 
   .col-label {
@@ -256,42 +344,60 @@
     color: var(--blue);
   }
 
-  /* AI: lavender everywhere, always labelled. */
-  .ai-btn {
-    @apply mt-2 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs;
-    background: var(--ai-bg);
-    border: 1px solid var(--ai-border);
-    color: var(--ai-text);
-    transition: border-color 0.15s;
+  /* AI: a clean panel with a muted label and a cerulean sparkle. Always labelled. */
+  .ai-spark {
+    color: var(--blue);
   }
+  .ai-suggestion,
+  .ai-panel {
+    @apply my-3 rounded-2xl bg-surface p-4;
+  }
+  .ai-tag,
+  .ai-panel-label {
+    @apply mb-2 text-[11px] font-semibold uppercase text-text3;
+    letter-spacing: 0.08em;
+  }
+  .ai-panel-label {
+    @apply mb-3;
+  }
+  .ai-suggestion-text {
+    @apply text-sm italic leading-relaxed text-text;
+  }
+
+  /* Things you can tap to use AI or accept a suggestion: solid pills, no borders. */
+  .ai-pill,
+  .ai-btn {
+    @apply font-medium text-text;
+    background: var(--ai-pill-bg);
+    transition:
+      background-color 0.15s,
+      transform 0.1s;
+  }
+  .ai-pill {
+    @apply rounded-full px-3.5 py-2 text-[13px];
+  }
+  .ai-btn {
+    @apply mt-2 flex w-full items-center gap-2.5 rounded-xl px-3.5 py-3 text-left text-[13px];
+  }
+  .ai-pill:hover,
   .ai-btn:hover:not(:disabled) {
-    border-color: var(--lavender);
+    background: var(--ai-pill-hover);
+  }
+  .ai-pill:active,
+  .ai-btn:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  .ai-pill:focus-visible,
+  .ai-btn:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
   }
   .ai-btn:disabled {
     @apply cursor-wait opacity-60;
   }
   .ai-dot {
     @apply flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] text-white;
-    background: var(--lavender);
-  }
-  .ai-suggestion {
-    @apply my-2 rounded-xl p-3;
-    background: var(--ai-bg);
-    border: 1px solid var(--ai-border);
-  }
-  .ai-tag {
-    @apply mb-1.5 text-[10px] font-semibold uppercase text-lavender;
-    letter-spacing: 0.08em;
-  }
-  .ai-suggestion-text {
-    @apply text-sm italic leading-relaxed;
-    color: var(--ai-text);
-  }
-  .ai-chip {
-    @apply rounded-full px-2.5 py-1 text-xs;
-    background: var(--surface);
-    border: 1px dashed var(--lavender);
-    color: var(--ai-text);
+    background: var(--blue);
   }
 
   /* Neutral one-tap choice (not AI). */
@@ -439,11 +545,34 @@
     .flow-actions {
       grid-column: 1;
     }
+    /* The pane runs the full height of the editor so its divider does too;
+       the content inside stays in view while the editor scrolls. */
     .flow-side {
       grid-column: 2;
       grid-row: 2 / span 2;
+      align-self: stretch;
+      position: relative;
+      padding-left: 2.5rem;
+    }
+    .flow-side > * {
       position: sticky;
       top: 1rem;
+    }
+    /* Hairline divider that fades out at both ends. */
+    .flow-side::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: linear-gradient(
+        to bottom,
+        transparent,
+        var(--border2) 12%,
+        var(--border2) 88%,
+        transparent
+      );
     }
 
     /* Record view: the seven-column worksheet. */
@@ -470,15 +599,41 @@
       border-bottom: 1px solid var(--border2);
       min-height: 3.25rem;
     }
+    /* Pills float in the middle of the column with room between them. */
     .record-table .mood-row {
-      @apply flex-col items-start;
+      @apply mt-0 flex-col items-center gap-2;
     }
+    .record-table .mood {
+      @apply text-center;
+    }
+  }
+
+  /* Completed columns in the record flow: white cards with a faint edge and a
+     sage notch down the left side. */
+  .flow-side .past-col {
+    background: var(--surface);
+    border: 1px solid var(--card-edge);
+    border-left: 3px solid var(--sage);
+  }
+  .flow-side .past-col-text {
+    color: var(--text);
+    line-height: 1.6;
   }
 
   /* Below the laptop breakpoint the flow's side pane sits under the editor. */
   @media (max-width: 1023px) {
+    /* The Continue / Back buttons come straight after the editor, with the
+       completed columns underneath them. */
+    .flow {
+      display: flex;
+      flex-direction: column;
+    }
+    .flow-actions {
+      order: 1;
+    }
     .flow-side {
-      @apply mt-5;
+      order: 2;
+      @apply mt-6;
     }
   }
 
@@ -499,10 +654,71 @@
     @apply opacity-50;
   }
 
+  /* Delete sits at the far right of a card's actions and turns red on hover. */
+  .card-action-delete {
+    @apply ml-auto flex h-8 w-8 items-center justify-center p-0 text-text3;
+  }
+  .card-action-delete:hover:not(:disabled) {
+    border-color: var(--error);
+    color: var(--error);
+  }
+  .btn-danger {
+    @apply mt-4 text-white;
+    background: var(--error);
+  }
+  .btn-danger:hover:not(:disabled) {
+    filter: brightness(0.92);
+  }
+
+  /* Home with no records: message and start button centred. */
+  .empty-state {
+    @apply flex flex-col items-center px-4 py-12 text-center;
+  }
+
   .guest-note {
     @apply mb-3 rounded-xl px-3 py-2.5 text-xs leading-relaxed text-text2;
     background: var(--surface2);
     border: 1px solid var(--border);
+  }
+
+  /* First-visit walkthrough (components/WelcomeTour.tsx). */
+  .tour {
+    @apply fixed inset-0 z-40;
+  }
+  .tour-blocker {
+    @apply absolute inset-0;
+  }
+  .tour-blocker.dim {
+    background: rgba(20, 18, 16, 0.6);
+  }
+  .tour-spotlight {
+    @apply pointer-events-none absolute rounded-2xl;
+    box-shadow:
+      0 0 0 2px var(--blue),
+      0 0 0 9999px rgba(20, 18, 16, 0.6);
+    transition: all 0.25s ease;
+  }
+  .tour-card {
+    @apply absolute rounded-2xl bg-surface p-4;
+    border: 1px solid var(--border);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 2rem);
+  }
+  /* Long text scrolls here, so the Back / Next buttons always stay visible. */
+  .tour-body {
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .tour-count {
+    @apply mb-1 text-[10px] font-semibold uppercase text-text3;
+    letter-spacing: 0.08em;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tour-spotlight {
+      transition: none;
+    }
   }
 
   .modal-backdrop {
@@ -652,8 +868,93 @@
     color: var(--error);
   }
 
+  /* The one mood chosen to examine: an amber star and outline. */
+  .card.examined {
+    border-color: var(--amber);
+  }
+  /* The examined mood is filled in the primary colour: the fill is the cue. */
+  .mood.examined {
+    @apply text-white;
+    background: var(--examined-fill);
+  }
+  .examined-star {
+    color: var(--amber);
+  }
+  .examine-btn {
+    @apply mt-1 flex items-center gap-1.5 text-xs text-text3;
+  }
+  .examine-btn.on {
+    @apply font-medium text-text;
+  }
+  .examine-star {
+    @apply shrink-0;
+    fill: none;
+    stroke: var(--border2);
+    stroke-width: 1.6;
+    stroke-linejoin: round;
+    transition:
+      fill 0.15s,
+      stroke 0.15s;
+  }
+  .examine-btn:hover .examine-star {
+    stroke: var(--amber);
+  }
+  .examine-btn.on .examine-star {
+    fill: var(--amber);
+    stroke: var(--amber);
+  }
+
+  /* Rating sliders: a cerulean fill on a soft track. --fill is the value as a
+     percentage, set inline, because WebKit has no "filled part" selector. */
   .mood-slider {
-    @apply h-6 w-full;
-    accent-color: var(--lavender);
+    @apply h-7 w-full cursor-pointer bg-transparent;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .mood-slider::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(
+      to right,
+      var(--slider-fill) 0 var(--fill, 50%),
+      var(--slider-track) var(--fill, 50%) 100%
+    );
+  }
+  .mood-slider::-moz-range-track {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--slider-track);
+  }
+  .mood-slider::-moz-range-progress {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--slider-fill);
+  }
+  .mood-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    margin-top: -7px;
+    border-radius: 50%;
+    background: var(--slider-fill);
+    border: 3px solid var(--surface);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  }
+  .mood-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--slider-fill);
+    border: 3px solid var(--surface);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  }
+  .mood-slider:focus-visible {
+    outline: none;
+  }
+  .mood-slider:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--slider-fill) 30%, transparent);
+  }
+  .mood-slider:focus-visible::-moz-range-thumb {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--slider-fill) 30%, transparent);
   }
 }

@@ -238,7 +238,8 @@ export function TrendsView({ signedIn, serverRecords, loadError }: TrendsViewPro
               {patterns !== null && (
                 <>
                   <p className="ai-tag">
-                    ✦ AI-generated from {count} {plural} — a prompt for reflection, not a diagnosis
+                    <span className="ai-spark">✦</span> AI-generated from {count} {plural} — a prompt for reflection, not a
+                    diagnosis
                   </p>
                   {patterns.length === 0 && (
                     <p className="text-sm leading-relaxed text-text3">
@@ -252,7 +253,7 @@ export function TrendsView({ signedIn, serverRecords, loadError }: TrendsViewPro
                         <p className="mb-1.5 text-xs text-text3">
                           Appears in {pattern.count} of {count} {plural}
                         </p>
-                        <p className="text-xs leading-relaxed" style={{ color: "var(--ai-text)" }}>
+                        <p className="text-xs leading-relaxed text-text2">
                           {pattern.explanation}
                         </p>
                       </div>

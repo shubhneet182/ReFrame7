@@ -1,11 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { CloudMascot } from "@/components/CloudMascot";
 import { CrisisBanner } from "@/components/CrisisBanner";
+import { MoodChip } from "@/components/MoodChip";
 import { MoodEditor } from "@/components/MoodEditor";
+import { tourIndexFor, WelcomeTour } from "@/components/WelcomeTour";
 import { postJson } from "@/lib/api";
 import { CRISIS_RESOURCES, detectCrisis } from "@/lib/crisis";
 import { formatDate } from "@/lib/format";
@@ -15,7 +17,7 @@ import {
   loadGuestRecords,
   saveGuestRecord,
 } from "@/lib/guest-records";
-import { COMMON_MOODS } from "@/lib/moods";
+import { COMMON_MOODS, ensureExamined, examinedMood, outcomeFrom } from "@/lib/moods";
 import { createClient } from "@/lib/supabase/client";
 import type {
   DetectSimilarityRequest,
@@ -40,11 +42,11 @@ const STEPS = [
   },
   {
     label: "Moods",
-    hint: "Name each emotion you felt and rate how intense it was, from 0 to 100%.",
+    hint: "Name each emotion you felt and rate how intense it was, from 0 to 100%. Then choose the one mood you want to examine in this record.",
   },
   {
     label: "Automatic thoughts",
-    hint: "What went through your mind? Write freely, then pick the thought that feels most distressing — your hot thought.",
+    hint: "What went through your mind? Write freely, then pick the thought that feels most distressing as your hot thought.",
   },
   {
     label: "Evidence for the hot thought",
@@ -52,7 +54,7 @@ const STEPS = [
   },
   {
     label: "Evidence against the hot thought",
-    hint: "What facts don't fit this thought? What would you say to a friend in the same situation?",
+    hint: "What facts suggest this thought might not be true? What would you say to a friend in the same situation?",
   },
   {
     label: "Balanced thought",
@@ -60,7 +62,7 @@ const STEPS = [
   },
   {
     label: "Outcome",
-    hint: "Re-rate your moods now that you've worked through the record.",
+    hint: "Rate each mood again now that you've worked through the record. The mood you chose to examine is starred. You can also add any new moods you notice.",
   },
 ] as const;
 
@@ -99,6 +101,19 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
   const [step, setStep] = useState(startStep);
   const [maxStep, setMaxStep] = useState(editing ? TOTAL : startStep);
   const [celebrating, setCelebrating] = useState(false);
+
+  // The welcome tour steps through this page to explain each column. While it
+  // runs, the flow just shows whichever step the tour is describing.
+  const [tourStart, setTourStart] = useState<number | null>(null);
+  useEffect(() => {
+    if (!initialRecord) setTourStart(tourIndexFor("/record/new"));
+  }, [initialRecord]);
+  const tourActive = tourStart !== null;
+
+  function showTourStep(target: number | null) {
+    setStep(target ?? 1);
+    if (target === null) setTourStart(null);
+  }
   const [recordId, setRecordId] = useState<string | null>(initialRecord?.id ?? null);
 
   const [situation, setSituation] = useState(initialRecord?.situation ?? "");
@@ -113,8 +128,19 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
   const [balancedThoughtAi, setBalancedThoughtAi] = useState<string | null>(
     initialRecord?.balanced_thought_ai ?? null,
   );
+  // AI drafts shown so far in this sitting (including one saved with the record).
+  const [balancedDrafts, setBalancedDrafts] = useState<string[]>(
+    initialRecord?.balanced_thought_ai ? [initialRecord.balanced_thought_ai] : [],
+  );
+  // How many drafts have been asked for; drives the variety of angle and length.
+  const [balancedAttempts, setBalancedAttempts] = useState(
+    initialRecord?.balanced_thought_ai ? 1 : 0,
+  );
   const [belief, setBelief] = useState<number | null>(initialRecord?.balanced_belief ?? null);
-  const [outcomeMoods, setOutcomeMoods] = useState<Mood[]>(initialRecord?.outcome_moods ?? []);
+  // Synced with column 2 from the start, in case the record is resumed at step 7.
+  const [outcomeMoods, setOutcomeMoods] = useState<Mood[]>(() =>
+    outcomeFrom(initialRecord?.moods ?? [], initialRecord?.outcome_moods ?? []),
+  );
   const [similarId, setSimilarId] = useState<string | null>(
     initialRecord?.similar_record_id ?? null,
   );
@@ -146,7 +172,7 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
 
   const canProceed =
     (step === 1 && situation.trim().length > 0) ||
-    (step === 2 && moods.length > 0) ||
+    (step === 2 && examinedMood(moods) !== undefined) ||
     (step === 3 && automaticThoughts.trim().length > 0 && hotThought.trim().length > 0) ||
     step >= 4;
 
@@ -220,6 +246,8 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
   }
 
   function goTo(target: number) {
+    // Re-rating starts from the moods in column 2, kept in step if they changed.
+    if (target === 7) setOutcomeMoods(outcomeFrom(moods, outcomeMoods));
     setAiError(null);
     setStep(target);
     setMaxStep((m) => Math.max(m, target));
@@ -231,10 +259,6 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
 
     // The route only involves AI when the user has it enabled.
     if (step === 3) void checkSimilarity();
-    if (step === 6 && outcomeMoods.length === 0) {
-      // Start the re-rating from the original moods.
-      setOutcomeMoods(moods.map((m) => ({ ...m })));
-    }
     goTo(step + 1);
   }
 
@@ -303,12 +327,12 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
   // (once per situation, so going back and forth doesn't refetch).
   const moodsLoadedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (step !== 2 || !aiEnabled || crisisNow) return;
+    if (step !== 2 || !aiEnabled || crisisNow || tourActive) return;
     if (moodsLoadedFor.current === situation) return;
     moodsLoadedFor.current = situation;
     void loadMoodSuggestions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, aiEnabled, crisisNow, situation]);
+  }, [step, aiEnabled, crisisNow, situation, tourActive]);
 
   const openMoodSuggestions = moodSuggestions.filter(
     (s) => !moods.some((m) => m.emotion.toLowerCase() === s.emotion.toLowerCase()),
@@ -337,14 +361,23 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
           hotThought,
           evidenceFor,
           evidenceAgainst,
+          // On "regenerate", say what has already been offered so the next
+          // draft takes a different angle instead of rewording the last one.
+          previous: balancedDrafts,
+          attempt: balancedAttempts,
         }),
-      (result) => setBalancedThoughtAi(result.balancedThought),
+      (result) => {
+        setBalancedAttempts((count) => count + 1);
+        setBalancedThoughtAi(result.balancedThought);
+        setBalancedDrafts((drafts) => [...drafts, result.balancedThought].slice(-3));
+      },
     );
 
   function acceptMood(suggestion: Mood) {
-    setMoodSuggestions((list) => list.filter((m) => m.emotion !== suggestion.emotion));
+    // The suggestion stays in the list (hidden while the mood is in use), so
+    // removing the mood later offers it again.
     if (moods.some((m) => m.emotion.toLowerCase() === suggestion.emotion.toLowerCase())) return;
-    setMoods([...moods, { ...suggestion, ai_suggested: true }]);
+    setMoods(ensureExamined([...moods, { ...suggestion, ai_suggested: true }]));
   }
 
   // The user's own words are never replaced: a suggestion is appended.
@@ -359,7 +392,6 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
     <>
       <AppHeader
         title={editing ? "Edit thought record" : initialRecord ? "Continue thought record" : "New thought record"}
-        subtitle={`Column ${step} of ${TOTAL} — ${current.label}`}
         backHref="/dashboard"
       />
 
@@ -370,17 +402,32 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
             const n = index + 1;
             const state = n === step ? "current" : n <= maxStep ? "done" : "";
             return (
-              <button
-                key={s.label}
-                type="button"
-                className={`step ${state}`}
-                disabled={n > maxStep}
-                onClick={() => goTo(n)}
-                aria-label={`Column ${n}: ${s.label}`}
-                aria-current={n === step ? "step" : undefined}
-              >
-                {n}
-              </button>
+              <Fragment key={s.label}>
+                {/* The track fills in as far as the user has reached. */}
+                {n > 1 && <span className={`step-line ${n <= maxStep ? "done" : ""}`} />}
+                <button
+                  type="button"
+                  className={`step ${state}`}
+                  disabled={n > maxStep}
+                  onClick={() => goTo(n)}
+                  aria-label={`Column ${n}: ${s.label}${state === "done" ? " (done)" : ""}`}
+                  aria-current={n === step ? "step" : undefined}
+                >
+                  {state === "done" ? (
+                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true">
+                      <path
+                        d="M3.5 8.5l3 3 6-6.5"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  ) : (
+                    n
+                  )}
+                </button>
+              </Fragment>
             );
           })}
         </nav>
@@ -396,7 +443,7 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
         )}
         </div>
 
-        <div className="flow-edit">
+        <div className="flow-edit" data-tour="flow-edit">
         <h2 className="col-label">{current.label}</h2>
         <p className="col-hint">{current.hint}</p>
 
@@ -416,15 +463,24 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
             {/* Common moods are the non-AI alternative, so they only show with AI off. */}
             <MoodEditor
               moods={moods}
-              onChange={setMoods}
+              onChange={(next) => setMoods(ensureExamined(next))}
               suggestions={aiEnabled ? [] : COMMON_MOODS}
+              selectable
             />
+
+            {moods.length > 1 && !examinedMood(moods) && (
+              <p className="form-error" role="status">
+                Choose the one mood you want to examine to continue.
+              </p>
+            )}
 
             {aiEnabled && crisisNow && <p className="col-hint mt-3">{AI_PAUSED}</p>}
 
             {aiEnabled && !crisisNow && moodAi === "loading" && (
-              <div className="ai-suggestion" role="status">
-                <p className="ai-tag mb-0">✦ AI is suggesting moods…</p>
+              <div className="ai-panel" role="status">
+                <p className="ai-panel-label mb-0">
+                  <span className="ai-spark">✦</span> AI is suggesting moods…
+                </p>
               </div>
             )}
 
@@ -436,14 +492,16 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
             )}
 
             {aiEnabled && openMoodSuggestions.length > 0 && (
-              <div className="ai-suggestion">
-                <p className="ai-tag">✦ AI-generated — tap to add, then adjust</p>
-                <div className="mood-row">
+              <div className="ai-panel">
+                <p className="ai-panel-label">
+                  <span className="ai-spark">✦</span> AI-generated — tap to add, then adjust
+                </p>
+                <div className="flex flex-wrap gap-2">
                   {openMoodSuggestions.map((mood) => (
                     <button
                       key={mood.emotion}
                       type="button"
-                      className="ai-chip"
+                      className="ai-pill"
                       onClick={() => acceptMood(mood)}
                     >
                       + {mood.emotion} {mood.intensity}%
@@ -503,13 +561,15 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
                 disabled={aiBusy !== null}
               >
                 <span className="ai-dot">✦</span>
-                {aiBusy === "evidence" ? "Thinking…" : "Suggest questions to help me think"}
+                {aiBusy === "evidence" ? "Thinking…" : "Get me thinking"}
               </button>
             )}
 
             {evidenceColumn === 5 && (questions[5]?.length ?? 0) > 0 && (
               <div className="ai-suggestion">
-                <p className="ai-tag">✦ AI-generated questions — answer in your own words</p>
+                <p className="ai-tag">
+                  <span className="ai-spark">✦</span> Some thought starters from AI
+                </p>
                 <ul className="list-disc space-y-1.5 pl-4">
                   {questions[evidenceColumn]?.map((question) => (
                     <li key={question} className="ai-suggestion-text">
@@ -526,7 +586,9 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
           <>
             {balancedThoughtAi && (
               <div className="ai-suggestion">
-                <p className="ai-tag">✦ AI-generated suggestion — based on your entries</p>
+                <p className="ai-tag">
+                  <span className="ai-spark">✦</span> AI-generated suggestion — based on your entries
+                </p>
                 <p className="ai-suggestion-text">{balancedThoughtAi}</p>
                 <button
                   type="button"
@@ -566,6 +628,7 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
                   value={belief ?? 50}
                   onChange={(e) => setBelief(Number(e.target.value))}
                   className="mood-slider"
+                  style={{ "--fill": `${belief ?? 50}%` } as React.CSSProperties}
                 />
                 <p className="text-[11px] text-text3">
                   0% is not at all, 100% is completely. There is no right answer.
@@ -585,13 +648,15 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
                   ? "Thinking…"
                   : balancedThoughtAi
                     ? "Regenerate a different suggestion"
-                    : "Suggest a balanced thought with AI"}
+                    : "Let AI help you find balance"}
               </button>
             )}
           </>
         )}
 
-        {step === 7 && <MoodEditor moods={outcomeMoods} onChange={setOutcomeMoods} />}
+        {step === 7 && (
+          <MoodEditor moods={outcomeMoods} onChange={setOutcomeMoods} baseline={moods} />
+        )}
 
         {aiError && (
           <p className="form-error" role="status">
@@ -605,7 +670,7 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
         <aside className="flow-side">
         {step === 1 && (
           <p className="wide-only text-xs leading-relaxed text-text3">
-            Your earlier answers will appear here as you move through the columns.
+            Your responses appear here as you work through each step.
           </p>
         )}
         {step >= 2 && (
@@ -620,9 +685,7 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
                 <p className="past-col-label">Column 2 — Moods</p>
                 <div className="mood-row mt-1">
                   {moods.map((mood) => (
-                    <span key={mood.emotion} className="mood">
-                      {mood.emotion} {mood.intensity}%
-                    </span>
+                    <MoodChip key={mood.emotion} mood={mood} />
                   ))}
                 </div>
               </div>
@@ -670,7 +733,7 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
             onClick={next}
             disabled={!canProceed || saving}
           >
-            {saving ? "Saving…" : `Next — ${STEPS[step].label.toLowerCase()}`}
+            {saving ? "Saving…" : "Continue"}
           </button>
         ) : (
           <button type="button" className="btn btn-primary mt-4" onClick={finish} disabled={saving}>
@@ -692,6 +755,16 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
         </div>
       </main>
 
+      {tourStart !== null && (
+        <WelcomeTour
+          route="/record/new"
+          startIndex={tourStart}
+          signedIn={userId !== null}
+          onClose={() => setTourStart(null)}
+          onRecordStep={showTourStep}
+        />
+      )}
+
       {celebrating && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="done-title">
           <div className="modal">
@@ -706,7 +779,7 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
             </p>
 
             {balancedThought.trim() && (
-              <div className="aff-card mt-4 text-left">
+              <div className="aff-card affirm mt-4 text-left">
                 <p className="aff-label">Repeat after me</p>
                 <p className="aff-text">“{balancedThought.trim()}”</p>
               </div>

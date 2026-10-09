@@ -3,6 +3,8 @@ export interface Mood {
   /** 0–100 */
   intensity: number;
   ai_suggested: boolean;
+  /** The one mood the user chose to examine in this record (column 2). */
+  examine?: boolean;
 }
 
 /** Row shape of the `thought_records` table. */
@@ -81,6 +83,10 @@ export interface GenerateBalancedRequest {
   hotThought: string;
   evidenceFor: string;
   evidenceAgainst: string;
+  /** Drafts already shown, when the user asks for a different one. */
+  previous?: string[];
+  /** How many drafts have been requested before this one (0 for the first). */
+  attempt?: number;
 }
 export interface GenerateBalancedResponse {
   balancedThought: string;

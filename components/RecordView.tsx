@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { CrisisBanner } from "@/components/CrisisBanner";
 import { ExportPdfButton } from "@/components/ExportPdfButton";
+import { MoodChip } from "@/components/MoodChip";
 import { CRISIS_RESOURCES } from "@/lib/crisis";
 import { formatDate } from "@/lib/format";
 import { loadGuestRecords } from "@/lib/guest-records";
@@ -28,9 +29,7 @@ function Moods({ moods }: { moods: Mood[] }) {
   return (
     <div className="mood-row mt-1">
       {moods.map((mood) => (
-        <span key={mood.emotion} className="mood">
-          {mood.emotion} {mood.intensity}%{mood.ai_suggested ? " ✦" : ""}
-        </span>
+        <MoodChip key={mood.emotion} mood={mood} showAi />
       ))}
     </div>
   );
@@ -129,20 +128,29 @@ export function RecordView({ serverRecord, serverSimilar, guestId }: RecordViewP
         </Column>
         </div>
 
-        {record.balanced_thought_ai && (
-          <div className="ai-suggestion">
-            <p className="ai-tag">✦ AI-generated suggestion offered for this record</p>
-            <p className="ai-suggestion-text">{record.balanced_thought_ai}</p>
+        {hasAiMoods && <p className="mt-2 text-[11px] text-text3">
+            <span className="ai-spark">✦</span> Suggested by AI
+          </p>}
+
+        {/* Buttons on the left; on wide screens the credit sits at the right end of the same row. */}
+        <div className="lg:flex lg:items-end lg:justify-between lg:gap-10">
+          <div className="md:flex md:w-full md:max-w-lg md:gap-3">
+            <Link
+              href={`/record/new?resume=${record.id}`}
+              className="btn btn-primary mt-4 md:mt-2"
+            >
+              {record.is_complete ? "Edit this record" : "Continue this record"}
+            </Link>
+            <ExportPdfButton record={record} />
           </div>
-        )}
 
-        {hasAiMoods && <p className="mt-2 text-[11px] text-text3">✦ Suggested by AI</p>}
-
-        <div className="md:flex md:max-w-lg md:gap-3">
-          <Link href={`/record/new?resume=${record.id}`} className="btn btn-primary mt-4 md:mt-2">
-            {record.is_complete ? "Edit this record" : "Continue this record"}
-          </Link>
-          <ExportPdfButton record={record} />
+          {/* Credit for the method. The app is independent of its authors. */}
+          <p className="mt-6 max-w-md text-[11px] leading-relaxed text-text3 lg:mt-0 lg:text-right">
+            The seven-column Thought Record was developed by Christine A. Padesky (1983) and
+            appears in <cite>Mind Over Mood</cite>, Second Edition (Greenberger &amp; Padesky,
+            2016). ReFrame7 is an independent tool and is not affiliated with or endorsed by the
+            authors or publisher.
+          </p>
         </div>
       </main>
     </>
