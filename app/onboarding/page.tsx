@@ -3,8 +3,6 @@ import { CloudMascot } from "@/components/CloudMascot";
 import { OnboardingForm } from "@/components/OnboardingForm";
 import { getViewer } from "@/lib/viewer";
 
-export const metadata = { title: "ReFrame7" };
-
 export default async function OnboardingPage() {
   const { user, accepted } = await getViewer();
 

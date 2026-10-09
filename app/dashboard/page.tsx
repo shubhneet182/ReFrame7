@@ -3,8 +3,6 @@ import { DashboardView } from "@/components/DashboardView";
 import { getViewer } from "@/lib/viewer";
 import type { ThoughtRecord } from "@/types";
 
-export const metadata = { title: "Your thought records — ReFrame7" };
-
 export default async function DashboardPage() {
   const { user, supabase, preferences, accepted } = await getViewer();
   if (!accepted) redirect("/onboarding");

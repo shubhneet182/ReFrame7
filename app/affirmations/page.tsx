@@ -3,8 +3,6 @@ import { AffirmationsView } from "@/components/AffirmationsView";
 import { getViewer } from "@/lib/viewer";
 import type { ThoughtRecord } from "@/types";
 
-export const metadata = { title: "Affirmations — ReFrame7" };
-
 export default async function AffirmationsPage() {
   const { user, supabase, accepted } = await getViewer();
   if (!accepted) redirect("/onboarding");

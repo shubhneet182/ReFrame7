@@ -1,7 +1,5 @@
 import { AuthForm } from "@/components/AuthForm";
 
-export const metadata = { title: "Sign in — ReFrame7" };
-
 export default function LoginPage({
   searchParams,
 }: {

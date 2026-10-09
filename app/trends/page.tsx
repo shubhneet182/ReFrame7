@@ -4,8 +4,6 @@ import { TREND_DAYS } from "@/lib/trends";
 import { getViewer } from "@/lib/viewer";
 import type { ThoughtRecord } from "@/types";
 
-export const metadata = { title: "Mood trends — ReFrame7" };
-
 export default async function TrendsPage() {
   const { user, supabase, accepted } = await getViewer();
   if (!accepted) redirect("/onboarding");

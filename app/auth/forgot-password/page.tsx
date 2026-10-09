@@ -1,7 +1,5 @@
 import { ForgotPasswordForm } from "@/components/ForgotPasswordForm";
 
-export const metadata = { title: "Reset password — ReFrame7" };
-
 export default function ForgotPasswordPage({
   searchParams,
 }: {
