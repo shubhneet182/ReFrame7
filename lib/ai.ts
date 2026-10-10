@@ -26,7 +26,7 @@ export class AIUnavailableError extends Error {
   }
 }
 
-const CLAUDE_MODEL = "claude-opus-5-5";
+const CLAUDE_MODEL = "claude-sonnet-5-5";
 // Tried in order. The fast list is for short, simple tasks the user waits on.
 const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash"];
 const GEMINI_FAST_MODELS = ["gemini-flash-lite-latest", "gemini-3.5-flash"];
