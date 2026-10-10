@@ -66,14 +66,16 @@ const BALANCED_ANGLES = [
 ];
 
 /**
- * Lengths to rotate through on "regenerate", so drafts differ in size as well
- * as angle. The first draft is always the standard two or three sentences.
+ * Every draft is short: it has to fit in two or three lines on a phone and be
+ * something a person could say to themselves. On "regenerate" the length still
+ * varies a little within that, so drafts differ in size as well as angle.
  */
+const FIRST_LENGTH = "in one or two short sentences, 30 words at most";
 const BALANCED_LENGTHS = [
-  "in a single short sentence of no more than 20 words, something they could repeat to themselves",
-  "in two sentences",
-  "in three or four sentences, with a little more detail from their evidence",
-  "in one or two short, plain sentences",
+  "in a single sentence of no more than 15 words, something they could repeat to themselves",
+  "in two short sentences, 30 words at most",
+  "in a single sentence of no more than 22 words",
+  "in two short sentences, 25 words at most",
 ];
 
 export function balancedPrompt(input: GenerateBalancedRequest): AIRequest {
@@ -82,7 +84,7 @@ export function balancedPrompt(input: GenerateBalancedRequest): AIRequest {
   const attempt = Math.max(input.attempt ?? previous.length, previous.length);
   const length =
     attempt === 0
-      ? "in two or three sentences"
+      ? FIRST_LENGTH
       : BALANCED_LENGTHS[(attempt - 1) % BALANCED_LENGTHS.length];
   const different =
     previous.length === 0
@@ -102,7 +104,9 @@ ${field("hot thought", input.hotThought)}
 ${field("evidence for the hot thought", input.evidenceFor)}
 ${field("evidence against the hot thought", input.evidenceAgainst)}
 
-Draft one balanced thought this person could adopt or rewrite. Write it in the first person, ${length}. It must take both sides of their evidence seriously: acknowledge what is true in the hot thought, then widen the view using their own evidence against it (in a very short draft, a brief nod to each side is enough). Keep it realistic and believable, not relentlessly positive.
+Draft one balanced thought this person could adopt or rewrite. Write it in the first person, ${length}. The length limit is firm: do not go over it. It must take both sides seriously: a brief nod to what is true or hard in the hot thought, then a wider view drawn from their own evidence against it. Pick the one or two strongest points; do not list all their evidence. Keep it realistic and believable, not relentlessly positive.
+
+Voice: casual and current, the way a self-aware person in their twenties would actually say it to themselves. Plain everyday words, contractions, a light touch ("honestly", "that doesn't mean", "one bad meeting isn't the whole story"). Never clinical or formal. Do not force slang, and no emojis, hashtags or abbreviations like "fr" or "ngl". When the subject is heavy (grief, illness, real loss, serious money or job trouble), drop the lightness completely and be simple and gentle.
 
 If the worry is about their physical health or safety (a symptom, pain, an illness, a risk to their body), you are not in a position to judge it and must not try. Do not say or imply how likely any cause is, that the symptom is probably harmless, or that it is explained by stress, tiredness, screens, dehydration or anything else, even when the person lists these as their own evidence. Instead, name the uncertainty honestly: they do not know yet what it is, worrying does not settle it, and getting it checked by a doctor or nurse is a reasonable way to find out. Never discourage them from seeking care.
 ${different}
