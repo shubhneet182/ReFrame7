@@ -41,7 +41,7 @@ Your progress is saved each time you press **Continue**, so you can stop and com
 
 ## Where AI helps
 
-AI is there to suggest, never to decide. Every suggestion is labelled, and nothing is added to your
+AI is there to suggest, never to decide. Most suggestions are labelled, and nothing is added to your
 own writing unless you choose it.
 
 | Step | What the AI offers |
@@ -222,8 +222,8 @@ node evals/crisis-check/run.cjs
   connect your own email provider in Supabase.
 - AI calls can take 20–30 seconds. The AI routes ask the host for up to 60 seconds; check that your
   hosting plan allows that.
-- The data notice tells users their entries are not used to train AI. Make sure that is true of
-  whichever AI provider and plan you deploy with.
+- The data notice makes no promise about AI training. Check your AI provider's terms and plan
+  before adding one.
 
 ---
 

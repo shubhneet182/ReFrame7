@@ -31,8 +31,7 @@ export default async function OnboardingPage() {
           <li>
             <strong className="font-medium text-text">AI suggestions.</strong> AI helps turn your
             thoughts into useful reflections and insights throughout the app. When AI is used,
-            you&apos;re in control of what you choose to write and share. Your entries are not used
-            to train the AI.
+            you&apos;re in control of what you choose to write and share.
           </li>
           <li>
             <strong className="font-medium text-text">Your identity.</strong> Sensitive
@@ -43,7 +42,7 @@ export default async function OnboardingPage() {
       </div>
 
       <p className="mb-4 px-0.5 text-xs leading-relaxed text-text3">
-        Every AI suggestion is clearly labelled, and you are always in control. You can edit,
+        Most AI suggestions are clearly labelled, and you are always in control. You can edit,
         accept, or ignore any suggestion.
       </p>
 
