@@ -56,6 +56,18 @@ export function crisisGate(texts: string[]): NextResponse<ApiError> | null {
     : null;
 }
 
+/**
+ * Second crisis check, made by the AI itself: when an entry suggests the
+ * person may not want to live but uses wording the phrase patterns missed,
+ * the model replies {"crisis": true} instead of a suggestion (see BASE in
+ * lib/prompts.ts). Returns the same 409 as the pattern check, or null.
+ */
+export function aiCrisisFlag(data: unknown): NextResponse<ApiError> | null {
+  return (data as { crisis?: unknown } | null)?.crisis === true
+    ? jsonError("AI suggestions are paused while crisis resources are shown", 409)
+    : null;
+}
+
 export function aiFailure(route: string, error: unknown): NextResponse<ApiError> {
   console.error(`[${route}]`, error);
   return error instanceof AIUnavailableError

@@ -1,51 +1,49 @@
 import type { CrisisCheckResponse, CrisisResource } from "@/types";
 
-// Keyword-level detection only: deliberately broad, so it will over-trigger
-// rather than miss. Safe to run on the client so the banner works offline.
-export const CRISIS_KEYWORDS = [
-  "suicide",
-  "suicidal",
-  "kill myself",
-  "killing myself",
-  "end my life",
-  "take my life",
-  "end it all",
-  "want to die",
-  "wish i was dead",
-  "wish i were dead",
-  "better off dead",
-  "better off without me",
-  "no reason to live",
-  "not worth living",
-  "want to disappear",
-  "not be here anymore",
-  "hurt myself",
-  "hurting myself",
-  "harm myself",
-  "self harm",
-  "self-harm",
-  "cut myself",
-  "cutting myself",
-  // Strong hopelessness, without naming self-harm.
-  "what's the point of anything",
-  "what's the point of any of it",
-  "what is the point of anything",
-  "what's the point of living",
-  "no point in living",
-  "no point in going on",
-  "no point to anything",
-  "nothing will ever get better",
-  "nothing is ever going to get better",
-  "never going to get better",
-  "can't go on",
-  "cannot go on",
-  "can't do this anymore",
-  "can't do this any more",
-  "don't want to be here",
-  "tired of living",
-  "tired of being alive",
-  "give up on everything",
-] as const;
+// First line of defence: phrase patterns, checked in the browser as the person
+// types, so the banner works instantly and offline. Deliberately broad: it is
+// better to show support resources when they weren't needed than to miss
+// someone. It cannot catch every wording, so the AI routes also flag entries
+// that suggest the person may not want to live (see BASE in lib/prompts.ts).
+//
+// Text is lower-cased and apostrophes are removed before matching, so the
+// patterns are written without them ("dont", "cant", "whats").
+
+const LIVE = "(?:live|living|life|be alive|being alive|exist|existing|be here|being here|go on|going on|keep going|carry on|carrying on|wake up|waking up)";
+
+// "I don't want to live in this city" is about a place, not about living.
+const NOT_A_PLACE = "(?!\\s+(?:in|at|near|on|there|closer|next|by|for|today|tonight|when|while)\\b)";
+
+const CRISIS_PATTERNS: RegExp[] = [
+  // Suicide and self-harm, named directly.
+  /\bsuicid/,
+  /\b(?:kill|killing|hurt|hurting|harm|harming|cut|cutting)\s+my\s?self\b/,
+  /\bself[\s-]?harm/,
+  /\b(?:end|ending|take|taking)\s+(?:my|my own)\s+life\b/,
+  /\bend(?:ing)?\s+it\s+all\b/,
+  /\b(?:want|wanna|wish|wanting|going|ready)\s+to\s+(?:die|be dead|disappear|not exist|not wake up|end it|end things)\b/,
+  /\bwish\s+(?:i|that i)\s+(?:was|were|wasnt|werent|had never been)\s+(?:dead|born|alive|here)\b/,
+  /\bbetter\s+off\s+(?:dead|without me)\b/,
+
+  // Not wanting to live, or seeing no reason to.
+  new RegExp(`\\b(?:dont|do not|doesnt|didnt|no longer|never|cant|cannot)\\s+(?:want|wanna|wish|bear|stand)\\s+to\\s+${LIVE}\\b${NOT_A_PLACE}`),
+  new RegExp(`\\b(?:no|not any|dont see(?: a| any| the| much)?|cant see(?: a| any| the)?|dont have(?: a| any)?|without(?: a| any)?|lost(?: my| all| any| the)?|whats the|what is the|wheres the|see no|have no|theres no|there is no)\\s+(?:purpose|reason|point|will|meaning|need)\\s+(?:to|in|of|for)\\s+${LIVE}\\b`),
+  /\bnot\s+worth\s+(?:living|it anymore|going on)\b/,
+  /\b(?:life|living)\s+(?:is|isnt|feels|seems|has become)\s+(?:not worth|pointless|meaningless|worthless|hopeless|too much|unbearable)\b/,
+  /\b(?:life|living)\s+(?:isnt|is not)\s+worth\b/,
+  /\btired\s+of\s+(?:living|life|being alive|existing)\b/,
+  /\bnot\s+be\s+here\s+(?:anymore|any more|much longer)\b/,
+  /\bdont\s+want\s+to\s+be\s+here\b(?!\s+(?:at|in|for|with|today|tonight|right now|when|while)\b)/,
+
+  // Strong, general hopelessness.
+  /\bwhats?\s+(?:is\s+)?the\s+point\s+of\s+(?:anything|any of it|any of this|it all|everything|trying|going on|living|life)\b/,
+  /\bno\s+point\s+(?:to|in)\s+(?:anything|any of it|everything|trying anymore)\b/,
+  /\bnothing\s+(?:will|is|would)\s+(?:ever\s+)?(?:going\s+to\s+)?(?:get|be|feel)\s+(?:any\s+)?better\b/,
+  /\bnever\s+going\s+to\s+get\s+(?:any\s+)?better\b/,
+  /\bcant\s+(?:go on|keep going|carry on|do this any ?more|take (?:it|this) any ?more)\b(?!\s+(?:holiday|vacation|a|the|my|our|to|with|stage|about)\b)/,
+  /\bcannot\s+(?:go on|keep going|carry on)\b/,
+  /\bgiv(?:e|en|ing)\s+up\s+on\s+(?:everything|life|living)\b/,
+];
 
 export const CRISIS_RESOURCES: CrisisResource[] = [
   {
@@ -68,13 +66,13 @@ export const CRISIS_RESOURCES: CrisisResource[] = [
 function normalize(text: string): string {
   return text
     .toLowerCase()
-    .replace(/[‘’]/g, "'")
+    .replace(/['‘’`]/g, "")
     .replace(/\s+/g, " ");
 }
 
 export function detectCrisis(text: string): boolean {
   const normalized = normalize(text);
-  return CRISIS_KEYWORDS.some((keyword) => normalized.includes(keyword));
+  return CRISIS_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 
 export function checkCrisis(text: string): CrisisCheckResponse {

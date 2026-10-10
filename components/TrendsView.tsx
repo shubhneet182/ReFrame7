@@ -84,7 +84,10 @@ export function TrendsView({ signedIn, serverRecords, loadError }: TrendsViewPro
     }
   }, [recordsKey]);
 
-  const crisis = completed.some((r) => detectCrisis(`${r.hot_thought}\n${r.automatic_thoughts}`));
+  // Paused by the phrase check on the records, or by the AI's own flag.
+  const [aiCrisis, setAiCrisis] = useState(false);
+  const crisis =
+    aiCrisis || completed.some((r) => detectCrisis(`${r.hot_thought}\n${r.automatic_thoughts}`));
 
   async function analysePatterns() {
     setPatternState("loading");
@@ -95,6 +98,7 @@ export function TrendsView({ signedIn, serverRecords, loadError }: TrendsViewPro
           .filter((r) => r.hot_thought.trim())
           .map((r) => ({ hotThought: r.hot_thought, automaticThoughts: r.automatic_thoughts })),
       },
+      { onCrisis: () => setAiCrisis(true) },
     );
     if (!result) return setPatternState("failed");
 
@@ -239,7 +243,7 @@ export function TrendsView({ signedIn, serverRecords, loadError }: TrendsViewPro
                         : "Look for thinking patterns with AI"}
                     </button>
                   )}
-                  {patternState === "failed" && (
+                  {patternState === "failed" && !crisis && (
                     <p className="form-error" role="status">
                       AI couldn&apos;t do this just now. Please try again in a moment.
                     </p>

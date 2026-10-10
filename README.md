@@ -54,8 +54,10 @@ own writing unless you choose it.
 
 Step 4 has no AI on purpose: the evidence for your thought should be yours alone.
 
-**If an entry suggests someone may be in crisis** (thoughts of self-harm, or strong hopelessness),
-the app shows support resources and pauses AI suggestions for that record.
+**If an entry suggests someone may be in crisis** (thoughts of self-harm, not wanting to live, or
+strong hopelessness), the app shows support resources and pauses AI suggestions for that record.
+Two checks do this: a list of phrase patterns that runs as the person types, and the AI itself,
+which is told to flag such an entry instead of answering it.
 
 ## Your data
 
@@ -204,6 +206,13 @@ node evals/balanced-thought/run-eval.mjs --flow .claude/hillclimb/balanced-thoug
 
 The first run, and any run after the script or the prompts change, needs `--approve-harness` added
 by a person who has reviewed the change.
+
+`evals/crisis-check/run.cjs` tests the crisis check itself. It is plain code, so it is exact, free and
+instant: it confirms that a list of crisis phrases is caught and that ordinary phrases are not.
+
+```bash
+node evals/crisis-check/run.cjs
+```
 
 ### Before putting it online
 

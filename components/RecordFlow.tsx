@@ -155,15 +155,27 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const allText = [
+    situation,
+    automaticThoughts,
+    hotThought,
+    evidenceFor,
+    evidenceAgainst,
+    balancedThought,
+  ].join("\n");
+  // The AI can also flag an entry the phrase check missed. That holds for the
+  // text as it was when flagged, so editing the entry lets AI be asked again.
+  const [aiFlaggedText, setAiFlaggedText] = useState<string | null>(null);
   const crisisNow = useMemo(
-    () =>
-      detectCrisis(
-        [situation, automaticThoughts, hotThought, evidenceFor, evidenceAgainst, balancedThought].join(
-          "\n",
-        ),
-      ),
-    [situation, automaticThoughts, hotThought, evidenceFor, evidenceAgainst, balancedThought],
+    () => detectCrisis(allText) || aiFlaggedText === allText,
+    [allText, aiFlaggedText],
   );
+  const crisisHit = useRef(false);
+  const onCrisis = () => {
+    crisisHit.current = true;
+    setAiFlaggedText(allText);
+    setCrisisSeen(true);
+  };
   // Once flagged, the record stays flagged even if the text is edited away.
   const [crisisSeen, setCrisisSeen] = useState(initialRecord?.crisis_flagged ?? false);
   if (crisisNow && !crisisSeen) setCrisisSeen(true);
@@ -296,6 +308,7 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
     const result = await postJson<DetectSimilarityRequest, DetectSimilarityResponse>(
       "/api/detect-similarity",
       request,
+      { onCrisis },
     );
     if (result?.similar) {
       setSimilar(result.similar);
@@ -307,10 +320,12 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
     if (crisisNow) return setAiError(AI_PAUSED);
     setAiBusy(task);
     setAiError(null);
+    crisisHit.current = false;
     const result = await call();
     setAiBusy(null);
     if (result) onResult(result);
-    else setAiError(AI_UNAVAILABLE);
+    // A crisis stop shows the banner and the "paused" note instead of an error.
+    else setAiError(crisisHit.current ? AI_PAUSED : AI_UNAVAILABLE);
   }
 
   async function loadMoodSuggestions() {
@@ -318,6 +333,7 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
     const result = await postJson<SuggestMoodsRequest, SuggestMoodsResponse>(
       "/api/suggest-moods",
       { situation, automaticThought: automaticThoughts },
+      { onCrisis },
     );
     if (result) setMoodSuggestions(result.moods);
     setMoodAi(result ? "done" : "failed");
@@ -346,7 +362,7 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
           situation,
           hotThought,
           column,
-        }),
+        }, { onCrisis }),
       (result) => setQuestions((q) => ({ ...q, [column]: result.questions })),
     );
 
@@ -365,7 +381,7 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
           // draft takes a different angle instead of rewording the last one.
           previous: balancedDrafts,
           attempt: balancedAttempts,
-        }),
+        }, { onCrisis }),
       (result) => {
         setBalancedAttempts((count) => count + 1);
         setBalancedThoughtAi(result.balancedThought);

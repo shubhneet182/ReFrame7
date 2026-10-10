@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateJson } from "@/lib/ai";
 import { moodsPrompt } from "@/lib/prompts";
-import { aiFailure, crisisGate, getCaller, jsonError, readBody, textField } from "@/lib/route-helpers";
+import { aiCrisisFlag, aiFailure, crisisGate, getCaller, jsonError, readBody, textField } from "@/lib/route-helpers";
 import type { ApiError, Mood, SuggestMoodsResponse } from "@/types";
 
 const MAX_MOODS = 6;
@@ -52,6 +52,8 @@ export async function POST(
 
   try {
     const { data } = await generateJson(moodsPrompt(situation, automaticThought));
+    const flagged = aiCrisisFlag(data);
+    if (flagged) return flagged;
     const moods = toMoods(data);
     if (moods.length === 0) throw new Error("No usable moods in AI reply");
     return NextResponse.json({ moods });

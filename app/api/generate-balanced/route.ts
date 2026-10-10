@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateJson } from "@/lib/ai";
 import { balancedPrompt } from "@/lib/prompts";
-import { aiFailure, crisisGate, getCaller, jsonError, readBody, textField } from "@/lib/route-helpers";
+import { aiCrisisFlag, aiFailure, crisisGate, getCaller, jsonError, readBody, textField } from "@/lib/route-helpers";
 import type { ApiError, GenerateBalancedResponse, Mood } from "@/types";
 
 function toMoods(value: unknown): Mood[] {
@@ -73,6 +73,8 @@ export async function POST(
             : undefined,
       }),
     );
+    const flagged = aiCrisisFlag(data);
+    if (flagged) return flagged;
     const balancedThought = (data as { balancedThought?: unknown }).balancedThought;
     if (typeof balancedThought !== "string" || !balancedThought.trim()) {
       throw new Error("No balanced thought in AI reply");

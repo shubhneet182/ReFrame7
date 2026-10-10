@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateJson } from "@/lib/ai";
 import { patternsPrompt, THINKING_PATTERNS } from "@/lib/prompts";
-import { aiFailure, crisisGate, getCaller, jsonError, readBody, textField } from "@/lib/route-helpers";
+import { aiCrisisFlag, aiFailure, crisisGate, getCaller, jsonError, readBody, textField } from "@/lib/route-helpers";
 import type { AnalyzePatternsResponse, ApiError, ThinkingPattern } from "@/types";
 
 /** How many recent records are analysed in one request. */
@@ -60,6 +60,8 @@ export async function POST(
 
   try {
     const { data } = await generateJson(patternsPrompt(thoughts));
+    const flagged = aiCrisisFlag(data);
+    if (flagged) return flagged;
     // An empty list is a valid answer: nothing stood out.
     return NextResponse.json({ patterns: toPatterns(data, thoughts.length) });
   } catch (error) {

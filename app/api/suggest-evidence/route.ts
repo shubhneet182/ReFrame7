@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateJson } from "@/lib/ai";
 import { evidencePrompt } from "@/lib/prompts";
-import { aiFailure, crisisGate, getCaller, jsonError, readBody, textField } from "@/lib/route-helpers";
+import { aiCrisisFlag, aiFailure, crisisGate, getCaller, jsonError, readBody, textField } from "@/lib/route-helpers";
 import type { ApiError, SuggestEvidenceResponse } from "@/types";
 
 const MAX_QUESTIONS = 5;
@@ -39,6 +39,8 @@ export async function POST(
 
   try {
     const { data } = await generateJson(evidencePrompt(situation, hotThought, column));
+    const flagged = aiCrisisFlag(data);
+    if (flagged) return flagged;
     const questions = toQuestions(data);
     if (questions.length === 0) throw new Error("No usable questions in AI reply");
     return NextResponse.json({ questions });
