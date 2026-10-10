@@ -13,3 +13,10 @@ public/sw.js.map
 public/workbox-*.js
 public/workbox-*.js.map
 public/fallback-*.js
+
+# Eval run output (recreated by evals/*/run-eval.mjs)
+.claude/hillclimb/*/baseline/
+.claude/hillclimb/*/v*/
+.claude/hillclimb/*/report.html
+.claude/hillclimb/*/state.json
+.claude/hillclimb/*/trajectory/

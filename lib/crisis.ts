@@ -26,6 +26,25 @@ export const CRISIS_KEYWORDS = [
   "self-harm",
   "cut myself",
   "cutting myself",
+  // Strong hopelessness, without naming self-harm.
+  "what's the point of anything",
+  "what's the point of any of it",
+  "what is the point of anything",
+  "what's the point of living",
+  "no point in living",
+  "no point in going on",
+  "no point to anything",
+  "nothing will ever get better",
+  "nothing is ever going to get better",
+  "never going to get better",
+  "can't go on",
+  "cannot go on",
+  "can't do this anymore",
+  "can't do this any more",
+  "don't want to be here",
+  "tired of living",
+  "tired of being alive",
+  "give up on everything",
 ] as const;
 
 export const CRISIS_RESOURCES: CrisisResource[] = [

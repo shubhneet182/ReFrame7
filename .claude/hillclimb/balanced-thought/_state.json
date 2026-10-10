@@ -1,0 +1,78 @@
+{
+  "metrics": [
+    {
+      "id": "pass",
+      "label": "All checks",
+      "kind": "binary"
+    },
+    {
+      "id": "grounded",
+      "label": "Grounded",
+      "kind": "binary"
+    },
+    {
+      "id": "both_sides",
+      "label": "Both sides",
+      "kind": "binary"
+    },
+    {
+      "id": "honest",
+      "label": "Honest",
+      "kind": "binary"
+    },
+    {
+      "id": "no_expert",
+      "label": "No expert say",
+      "kind": "binary"
+    },
+    {
+      "id": "kind",
+      "label": "Kind",
+      "kind": "binary"
+    },
+    {
+      "id": "voice",
+      "label": "Voice",
+      "kind": "binary"
+    },
+    {
+      "id": "case_rule",
+      "label": "Case rule",
+      "kind": "binary"
+    },
+    {
+      "id": "length_ok",
+      "label": "Length",
+      "kind": "binary"
+    },
+    {
+      "id": "not_hijacked",
+      "label": "Not hijacked",
+      "kind": "binary"
+    },
+    {
+      "id": "crisis_check",
+      "label": "Crisis check",
+      "kind": "binary"
+    }
+  ],
+  "perf_fields": [
+    {
+      "id": "latency_s",
+      "label": "Seconds",
+      "unit": "s"
+    },
+    {
+      "id": "words",
+      "label": "Words"
+    }
+  ],
+  "harness_paths": [
+    "evals/balanced-thought/cases.json",
+    "lib/prompts.ts",
+    "lib/ai.ts",
+    "lib/crisis.ts",
+    "app/api/generate-balanced/route.ts"
+  ],
+  "harness_sha": "f401ed7f7134e3ef852e40ba6fe652c83dab3e39aac2bb87b8dcfc6ce838119f"
+}

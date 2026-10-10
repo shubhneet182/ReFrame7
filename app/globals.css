@@ -50,6 +50,7 @@
   --past-text: #5A4A90;
   --input-bg: #FAFAFA;
   --slider-track: #E5E0D8;
+  --trend-track: #EAE5DC;
   --card-edge: #E5E0D8;
   --ai-pill-bg: #EBE6F7;
   --ai-pill-hover: #DDD5F2;
@@ -87,6 +88,7 @@
   --past-text: #A898D8;
   --input-bg: #141210;
   --slider-track: #3F3A34;
+  --trend-track: #3F3A34;
   --card-edge: #3A3530;
   --ai-pill-bg: #3A3450;
   --ai-pill-hover: #484062;
@@ -789,6 +791,21 @@
     }
   }
 
+  /* Trends only: a slightly deeper canvas so the white cards stand out. */
+  [data-theme="light"] body:has(.trends-page) {
+    background: #F4F0EA;
+  }
+
+  /* AI thinking-pattern cards. */
+  .pattern-title {
+    @apply text-[15px] font-semibold text-blue;
+    font-family: var(--font-heading), var(--font-dm-sans), -apple-system, sans-serif;
+  }
+  .pattern-text {
+    @apply text-[13px] text-text;
+    line-height: 1.55;
+  }
+
   /* Headline numbers on the Trends page. */
   .stat-row {
     @apply grid grid-cols-2 gap-2;
@@ -801,7 +818,7 @@
     @apply text-[11px] leading-snug text-text3;
   }
   .stat-value {
-    @apply mt-1 text-2xl font-semibold leading-tight text-text;
+    @apply mt-1 text-2xl font-bold leading-tight text-text;
   }
   .stat-note {
     @apply mt-0.5 text-[11px] text-text3;
@@ -816,7 +833,7 @@
     display: none;
   }
   .trend-table-row {
-    @apply grid gap-1 px-3.5 py-3;
+    @apply grid gap-1 px-3.5 py-4;
     border-top: 1px solid var(--border);
     transition: background-color 0.15s;
   }
@@ -838,13 +855,28 @@
       @apply items-center gap-4 px-4;
     }
     .trend-table-head {
-      @apply py-2.5 text-[11px] font-semibold uppercase text-text3;
-      letter-spacing: 0.06em;
-      background: var(--surface2);
+      @apply py-3 text-[10.5px] font-bold uppercase text-text2;
+      font-family: var(--font-heading), var(--font-dm-sans), -apple-system, sans-serif;
+      letter-spacing: 0.05em;
+      /* A faint tint of the primary blue, so the header reads as a header. */
+      background: color-mix(in srgb, var(--blue) 10%, var(--surface));
+      border-bottom: 1px solid color-mix(in srgb, var(--blue) 22%, var(--surface));
+    }
+    .trend-table-row {
+      @apply py-5;
     }
     .trend-table-row:first-of-type {
       border-top: 1px solid var(--border);
     }
+  }
+
+  /* Trends: soft lavender for before, sage for after (bars and legend dots). */
+  /* A step darker than Soft Lavender and Sage, so the bars read clearly on the track. */
+  .trend-before {
+    background: #8576C6;
+  }
+  .trend-after {
+    background: #5F9A74;
   }
 
   .trend-row {
@@ -854,7 +886,8 @@
     @apply w-24 shrink-0 truncate text-xs text-text2;
   }
   .trend-bar-bg {
-    @apply h-2 flex-1 overflow-hidden rounded-full bg-surface2;
+    @apply h-2 flex-1 overflow-hidden rounded-full;
+    background: var(--trend-track);
   }
   .trend-bar {
     @apply h-full rounded-full;

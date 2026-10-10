@@ -58,7 +58,7 @@ export async function POST(
   if (blocked) return blocked;
 
   try {
-    const { data } = await generateJson(
+    const { data, model } = await generateJson(
       balancedPrompt({
         situation,
         moods: toMoods(body?.moods),
@@ -77,7 +77,11 @@ export async function POST(
     if (typeof balancedThought !== "string" || !balancedThought.trim()) {
       throw new Error("No balanced thought in AI reply");
     }
-    return NextResponse.json({ balancedThought: balancedThought.trim() });
+    // The header lets the eval record which model wrote each draft.
+    return NextResponse.json(
+      { balancedThought: balancedThought.trim() },
+      { headers: { "x-ai-model": model } },
+    );
   } catch (error) {
     return aiFailure("generate-balanced", error);
   }

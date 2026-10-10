@@ -24,13 +24,25 @@ import type {
 
 const PATTERNS_KEY = "rf7_patterns";
 
-/** "↓ 38 pts", "↑ 5 pts" or "No change". Points are of mood intensity (0–100). */
+/**
+ * "↓ 38 pts", "↑ 5 pts" or "No change". Points are of mood intensity (0–100).
+ * Deliberately uncoloured: the app can't tell a distressing mood from a
+ * positive one, so it reports the direction without calling it good or bad.
+ */
 function formatChange(change: number): string {
   if (change === 0) return "No change";
   return `${change < 0 ? "↓" : "↑"} ${Math.abs(change)} pts`;
 }
 
-function StatTile({ label, value, note }: { label: string; value: string; note?: string }) {
+function StatTile({
+  label,
+  value,
+  note,
+}: {
+  label: string;
+  value: React.ReactNode;
+  note?: React.ReactNode;
+}) {
   return (
     <div className="stat-tile">
       <p className="stat-label">{label}</p>
@@ -113,7 +125,7 @@ export function TrendsView({ signedIn, serverRecords, loadError }: TrendsViewPro
         }
       />
 
-      <main className="content has-tabs">
+      <main className="content has-tabs trends-page">
         {loadError && (
           <p className="form-error mb-3" role="alert">
             Couldn&apos;t load your trends. Please try again.
@@ -159,10 +171,10 @@ export function TrendsView({ signedIn, serverRecords, loadError }: TrendsViewPro
 
                 <div className="mb-3 flex gap-4 text-xs text-text3">
                   <span className="flex items-center gap-1.5">
-                    <span className="h-2.5 w-2.5 rounded-full bg-lavender" /> Before
+                    <span className="h-2.5 w-2.5 rounded-full trend-before" /> Before
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="h-2.5 w-2.5 rounded-full bg-sage" /> After
+                    <span className="h-2.5 w-2.5 rounded-full trend-after" /> After
                   </span>
                 </div>
 
@@ -179,7 +191,7 @@ export function TrendsView({ signedIn, serverRecords, loadError }: TrendsViewPro
                       <div className="trend-row">
                         <span className="trend-bar-bg">
                           <span
-                            className="trend-bar block bg-lavender"
+                            className="trend-bar block trend-before"
                             style={{ width: `${trend.before}%` }}
                           />
                         </span>
@@ -188,7 +200,7 @@ export function TrendsView({ signedIn, serverRecords, loadError }: TrendsViewPro
                       <div className="trend-row">
                         <span className="trend-bar-bg">
                           <span
-                            className="trend-bar block bg-sage"
+                            className="trend-bar block trend-after"
                             style={{ width: `${trend.after}%` }}
                           />
                         </span>
@@ -237,9 +249,9 @@ export function TrendsView({ signedIn, serverRecords, loadError }: TrendsViewPro
 
               {patterns !== null && (
                 <>
-                  <p className="ai-tag">
-                    <span className="ai-spark">✦</span> AI-generated from {count} {plural} — a prompt for reflection, not a
-                    diagnosis
+                  <p className="mb-3 text-xs leading-relaxed text-text3">
+                    Explore recurring patterns in your thoughts and discover new perspectives.
+                    These are reflections, not diagnoses.
                   </p>
                   {patterns.length === 0 && (
                     <p className="text-sm leading-relaxed text-text3">
@@ -249,11 +261,11 @@ export function TrendsView({ signedIn, serverRecords, loadError }: TrendsViewPro
                   <div className="card-grid">
                     {patterns.map((pattern) => (
                       <div key={pattern.name} className="ai-suggestion my-0">
-                        <p className="text-sm font-medium text-text">{pattern.name}</p>
+                        <p className="pattern-title">{pattern.name}</p>
                         <p className="mb-1.5 text-xs text-text3">
                           Appears in {pattern.count} of {count} {plural}
                         </p>
-                        <p className="text-xs leading-relaxed text-text2">
+                        <p className="pattern-text">
                           {pattern.explanation}
                         </p>
                       </div>
@@ -287,9 +299,13 @@ export function TrendsView({ signedIn, serverRecords, loadError }: TrendsViewPro
                     </span>
                     <span role="cell">
                       <span className="md:hidden">Mood </span>
-                      {row.before === null || row.after === null
-                        ? "—"
-                        : `${row.before}% → ${row.after}% (${formatChange(row.after - row.before)})`}
+                      {row.before === null || row.after === null ? (
+                        "—"
+                      ) : (
+                        <>
+                          {row.before}% → {row.after}% ({formatChange(row.after - row.before)})
+                        </>
+                      )}
                     </span>
                     <span role="cell">
                       <span className="md:hidden">Belief </span>
@@ -301,10 +317,6 @@ export function TrendsView({ signedIn, serverRecords, loadError }: TrendsViewPro
             </section>
           </>
         )}
-
-        <Link href="/record/new" className="btn btn-primary mt-4 md:max-w-xs">
-          Start a new record
-        </Link>
       </main>
 
       <TabNav />

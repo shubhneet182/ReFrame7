@@ -21,8 +21,9 @@ const TABS = [
     label: "Home",
     icon: (
       <svg {...icon}>
-        <circle cx="12" cy="12" r="9" />
-        <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+        <path d="M3.5 11.5L12 4l8.5 7.5" />
+        <path d="M5.5 10v9.5h13V10" />
+        <path d="M10 19.5v-5h4v5" />
       </svg>
     ),
   },

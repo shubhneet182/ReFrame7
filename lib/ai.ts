@@ -15,6 +15,8 @@ export interface AIRequest {
 export interface AIResult {
   text: string;
   provider: AIProvider;
+  /** The model that actually answered (a fallback may differ from the first choice). */
+  model: string;
 }
 
 export class AIUnavailableError extends Error {
@@ -29,6 +31,31 @@ const CLAUDE_MODEL = "claude-opus-5-5";
 const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash"];
 const GEMINI_FAST_MODELS = ["gemini-flash-lite-latest", "gemini-3.5-flash"];
 const DEFAULT_MAX_TOKENS = 4096;
+
+// Daily budget for Claude, in requests. Once it is used up, everything goes
+// to Gemini until the next day (UTC). Set CLAUDE_DAILY_LIMIT to change it; 0
+// turns Claude off. The count is kept in memory, so it restarts when the
+// server does and is per server instance on serverless hosting: treat it as a
+// brake on spend, and keep a hard spending limit with Anthropic as well.
+const parsedLimit = Number(process.env.CLAUDE_DAILY_LIMIT);
+const CLAUDE_DAILY_LIMIT =
+  process.env.CLAUDE_DAILY_LIMIT && Number.isFinite(parsedLimit) && parsedLimit >= 0
+    ? Math.floor(parsedLimit)
+    : 150;
+
+let claudeUsage = { day: "", count: 0 };
+
+/** Counts one Claude request against today's budget; false once it is spent. */
+function takeClaudeRequest(): boolean {
+  const today = new Date().toISOString().slice(0, 10);
+  if (claudeUsage.day !== today) claudeUsage = { day: today, count: 0 };
+  if (claudeUsage.count >= CLAUDE_DAILY_LIMIT) return false;
+  claudeUsage.count += 1;
+  if (claudeUsage.count === CLAUDE_DAILY_LIMIT) {
+    console.warn(`[ai] Claude daily limit of ${CLAUDE_DAILY_LIMIT} reached; using Gemini until tomorrow (UTC).`);
+  }
+  return true;
+}
 
 async function callClaude({ system, prompt, maxTokens }: AIRequest): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -57,7 +84,12 @@ async function callClaude({ system, prompt, maxTokens }: AIRequest): Promise<str
   return text;
 }
 
-async function callGemini({ system, prompt, maxTokens, fast }: AIRequest): Promise<string> {
+async function callGemini({
+  system,
+  prompt,
+  maxTokens,
+  fast,
+}: AIRequest): Promise<{ text: string; model: string }> {
   const apiKey = process.env.GOOGLE_AI_API_KEY;
   if (!apiKey) throw new Error("GOOGLE_AI_API_KEY is not set");
 
@@ -76,7 +108,7 @@ async function callGemini({ system, prompt, maxTokens, fast }: AIRequest): Promi
       const result = await model.generateContent(prompt);
       const text = result.response.text().trim();
       if (!text) throw new Error("Gemini returned no text");
-      return text;
+      return { text, model: name };
     } catch (error) {
       lastError = error;
       console.warn(`[ai] ${name} failed:`, error instanceof Error ? error.message : error);
@@ -88,24 +120,25 @@ async function callGemini({ system, prompt, maxTokens, fast }: AIRequest): Promi
 /** Runs generateText and parses the JSON object in the reply (tolerates code fences). */
 export async function generateJson(
   request: AIRequest,
-): Promise<{ data: unknown; provider: AIProvider }> {
-  const { text, provider } = await generateText(request);
+): Promise<{ data: unknown; provider: AIProvider; model: string }> {
+  const { text, provider, model } = await generateText(request);
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start < 0 || end <= start) throw new Error("AI reply did not contain a JSON object");
-  return { data: JSON.parse(text.slice(start, end + 1)) as unknown, provider };
+  return { data: JSON.parse(text.slice(start, end + 1)) as unknown, provider, model };
 }
 
 /**
- * Tries Claude first; on any failure falls back to Gemini.
- * With no ANTHROPIC_API_KEY set, Claude is skipped and Gemini handles everything.
+ * Tries Claude first; on any failure, or once today's Claude budget is used
+ * up, falls back to Gemini. With no ANTHROPIC_API_KEY set, Claude is skipped
+ * and Gemini handles everything.
  */
 export async function generateText(request: AIRequest): Promise<AIResult> {
   const causes: unknown[] = [];
 
-  if (process.env.ANTHROPIC_API_KEY) {
+  if (process.env.ANTHROPIC_API_KEY && takeClaudeRequest()) {
     try {
-      return { text: await callClaude(request), provider: "claude" };
+      return { text: await callClaude(request), provider: "claude", model: CLAUDE_MODEL };
     } catch (error) {
       causes.push(error);
       console.warn("[ai] Claude failed, falling back to Gemini:", error);
@@ -113,7 +146,7 @@ export async function generateText(request: AIRequest): Promise<AIResult> {
   }
 
   try {
-    return { text: await callGemini(request), provider: "gemini" };
+    return { ...(await callGemini(request)), provider: "gemini" };
   } catch (error) {
     causes.push(error);
     console.error("[ai] Gemini fallback failed:", error);
