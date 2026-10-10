@@ -1,7 +1,7 @@
 import type { CrisisCheckResponse, CrisisResource } from "@/types";
 
-// First line of defence: phrase patterns, checked in the browser as the person
-// types, so the banner works instantly and offline. Deliberately broad: it is
+// First line of defence: phrase patterns, checked in the browser when the
+// person presses Continue, so the banner works instantly and offline. Deliberately broad: it is
 // better to show support resources when they weren't needed than to miss
 // someone. It cannot catch every wording, so the AI routes also flag entries
 // that suggest the person may not want to live (see BASE in lib/prompts.ts).

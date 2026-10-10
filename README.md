@@ -56,7 +56,7 @@ Step 4 has no AI on purpose: the evidence for your thought should be yours alone
 
 **If an entry suggests someone may be in crisis** (thoughts of self-harm, not wanting to live, or
 strong hopelessness), the app shows support resources and pauses AI suggestions for that record.
-Two checks do this: a list of phrase patterns that runs as the person types, and the AI itself,
+Two checks do this: a list of phrase patterns that runs when the person presses Continue, and the AI itself,
 which is told to flag such an entry instead of answering it.
 
 ## Your data

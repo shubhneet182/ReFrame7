@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { CloudMascot } from "@/components/CloudMascot";
 import { CrisisBanner } from "@/components/CrisisBanner";
@@ -163,22 +163,32 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
     evidenceAgainst,
     balancedThought,
   ].join("\n");
-  // The AI can also flag an entry the phrase check missed. That holds for the
-  // text as it was when flagged, so editing the entry lets AI be asked again.
-  const [aiFlaggedText, setAiFlaggedText] = useState<string | null>(null);
-  const crisisNow = useMemo(
-    () => detectCrisis(allText) || aiFlaggedText === allText,
-    [allText, aiFlaggedText],
+  // The entry is checked for crisis wording when the person presses Continue
+  // (not while they type), and by the AI the first time it reads the entry.
+  // `flaggedText` is the entry as it was when flagged: AI stays paused for
+  // exactly that text, so rewording the entry lets AI be asked again.
+  const [flaggedText, setFlaggedText] = useState<string | null>(
+    initialRecord?.crisis_flagged && detectCrisis(allText) ? allText : null,
   );
+  const crisisNow = flaggedText === allText;
+  // Once flagged, the record stays flagged and keeps showing the banner.
+  const [crisisSeen, setCrisisSeen] = useState(initialRecord?.crisis_flagged ?? false);
   const crisisHit = useRef(false);
   const onCrisis = () => {
     crisisHit.current = true;
-    setAiFlaggedText(allText);
+    setFlaggedText(allText);
     setCrisisSeen(true);
   };
-  // Once flagged, the record stays flagged even if the text is edited away.
-  const [crisisSeen, setCrisisSeen] = useState(initialRecord?.crisis_flagged ?? false);
-  if (crisisNow && !crisisSeen) setCrisisSeen(true);
+
+  /** Run on Continue. Returns whether the record should be saved as flagged. */
+  function checkForCrisis(): boolean {
+    if (detectCrisis(allText)) {
+      setFlaggedText(allText);
+      setCrisisSeen(true);
+      return true;
+    }
+    return crisisSeen;
+  }
 
   const current = STEPS[step - 1];
 
@@ -188,7 +198,7 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
     (step === 3 && automaticThoughts.trim().length > 0 && hotThought.trim().length > 0) ||
     step >= 4;
 
-  async function persist(isComplete: boolean): Promise<string | null> {
+  async function persist(isComplete: boolean, flagged: boolean): Promise<string | null> {
     setSaving(true);
     setSaveError(null);
 
@@ -206,7 +216,7 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
       // A completed record stays completed while it is being edited.
       is_complete: isComplete || editing,
       similar_record_id: similarId,
-      crisis_flagged: crisisSeen || crisisNow,
+      crisis_flagged: flagged,
       ai_enabled: aiEnabled,
     };
 
@@ -267,7 +277,7 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
   }
 
   async function next() {
-    if (!(await persist(false))) return;
+    if (!(await persist(false, checkForCrisis()))) return;
 
     // The route only involves AI when the user has it enabled.
     if (step === 3) void checkSimilarity();
@@ -275,7 +285,7 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
   }
 
   async function finish() {
-    const id = await persist(true);
+    const id = await persist(true, checkForCrisis());
     if (!id) return;
     if (editing) {
       router.push(`/record/${id}`);
@@ -448,7 +458,7 @@ export function RecordFlow({ userId, aiEnabled = true, initialRecord }: RecordFl
           })}
         </nav>
 
-        {(crisisNow || crisisSeen) && <CrisisBanner resources={CRISIS_RESOURCES} />}
+        {crisisSeen && <CrisisBanner resources={CRISIS_RESOURCES} />}
 
         {similar && step >= 4 && (
           <div className="aff-card">
