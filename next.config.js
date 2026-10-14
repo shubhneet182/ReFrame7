@@ -8,6 +8,24 @@ const withPWA = require("next-pwa")({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Lets the live app be embedded in Canva / Slides.com presentations.
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors 'self' https://*.canva.com https://canva.com https://*.slides.com;",
+          },
+          {
+            key: "X-Frame-Options",
+            value: "ALLOW-FROM https://canva.com", // Fallback for older browsers
+          },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = withPWA(nextConfig);
