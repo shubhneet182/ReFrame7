@@ -16,7 +16,7 @@ const nextConfig = {
         headers: [
           {
             key: "Content-Security-Policy",
-            value: "frame-ancestors 'self' https://*.canva.com https://canva.com https://*.slides.com;",
+            value: "frame-ancestors 'self' file: http://localhost:* https://*.canva.com https://canva.com https://*.slides.com;",
           },
           {
             key: "X-Frame-Options",
